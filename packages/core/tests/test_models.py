@@ -1,4 +1,7 @@
-from adc_core.models import Finding, Location, Source, ReviewResult
+import pytest
+from adc_core.models import Finding, Location, ReviewResult, Source
+from pydantic import ValidationError
+
 
 def test_finding_serializes_to_camelcase_with_sources():
     f = Finding(
@@ -16,3 +19,24 @@ def test_review_result_defaults_status_and_findings():
     r = ReviewResult(id="r1", language="python", model="mock")
     assert r.status == "queued"
     assert r.findings == []
+
+
+def test_finding_roundtrips_from_camelcase_payload():
+    payload = {
+        "id": "f1", "category": "logic", "severity": "medium",
+        "title": "t", "description": "d", "recommendation": "r",
+        "location": {"startLine": 3, "endLine": 4},
+        "sources": [{"type": "tool", "name": "semgrep", "ruleId": "py.x"}],
+    }
+    f = Finding.model_validate(payload)
+    assert f.location.start_line == 3
+    assert f.sources[0].rule_id == "py.x"
+
+
+def test_rejects_invalid_category():
+    with pytest.raises(ValidationError):
+        Finding(
+            id="f1", category="not-a-category", severity="low",
+            title="t", description="d", recommendation="r",
+            location=Location(start_line=1, end_line=1),
+        )

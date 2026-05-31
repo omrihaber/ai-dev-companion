@@ -1,6 +1,8 @@
 from __future__ import annotations
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
@@ -15,15 +17,15 @@ class _Camel(BaseModel):
 
 class Location(_Camel):
     file: str | None = None
-    start_line: int
-    end_line: int
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
     start_col: int | None = None
     end_col: int | None = None
 
 class Source(_Camel):
     type: Literal["agent", "tool"]
     name: str
-    confidence: float | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
     rule_id: str | None = None
     url: str | None = None
 
@@ -45,6 +47,6 @@ class ReviewResult(_Camel):
     model: str
     findings: list[Finding] = Field(default_factory=list)
     summary: str = ""
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     duration_ms: int | None = None
     error: str | None = None
