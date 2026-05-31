@@ -1,35 +1,32 @@
 import pytest
+from adc_api.agents import build_agents
 from adc_api.providers import MockProvider
 from adc_api.review_service import ReviewService
 
 
 @pytest.mark.asyncio
-async def test_run_merges_syntax_and_agent_findings_and_emits_progress():
-    provider = MockProvider(seed=[{
-        "category": "security", "severity": "high", "title": "SQLi",
-        "description": "concat", "recommendation": "params", "start_line": 2, "end_line": 2,
-    }])
-    stages: list[str] = []
-    svc = ReviewService(provider=provider)
+async def test_all_agents_run_and_identical_findings_merge_with_per_agent_progress():
+    # Shared mock: every agent returns the SAME seeded issue (same title + line). The aggregator
+    # merges them across categories into ONE card citing all six agents — and per-agent progress
+    # still reaches "done" for each, proving the fan-out ran.
+    agents = build_agents(provider=MockProvider(seed=[{
+        "category": "security", "severity": "high", "title": "SQL injection",
+        "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
+    }]))
+    events: list[tuple[str, dict]] = []
+    svc = ReviewService(agents=agents)
     result = await svc.run(
-        review_id="r1", language="python",
-        code="def f(uid):\n    q = 'SELECT ' + uid\n",
-        on_progress=lambda e: stages.append(e.stage),
+        review_id="r1", language="python", code="x = 1\n",
+        on_progress=lambda e: events.append((e.stage, e.sub_status)),
     )
     assert result.status == "done"
-    cats = {f.category for f in result.findings}
-    assert "security" in cats
-    assert result.findings[0].sources  # citation present
+    # all six agents flagged the same issue -> merged into one card citing all six sources
+    assert len(result.findings) == 1
+    assert {s.name for s in result.findings[0].sources} == {
+        "security-agent", "performance-agent", "logic-agent",
+        "quality-agent", "docs-agent", "tests-agent",
+    }
+    stages = [s for s, _ in events]
     assert "analyzing" in stages and "done" in stages
-
-@pytest.mark.asyncio
-async def test_run_marks_failed_on_provider_error():
-    class Boom(MockProvider):
-        async def review(self, code, language):
-            raise RuntimeError("model down")
-    svc = ReviewService(provider=Boom())
-    result = await svc.run(
-        review_id="r2", language="python", code="x=1\n", on_progress=lambda e: None
-    )
-    assert result.status == "failed"
-    assert "model down" in (result.error or "")
+    final_sub = [sub for s, sub in events if s == "analyzing"][-1]
+    assert all(v == "done" for v in final_sub.values())

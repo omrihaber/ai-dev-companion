@@ -10,7 +10,7 @@ Open-source and local-first — runs with **zero API keys** using a local model 
 
 ## Architecture
 - **packages/core** — Findings schema, sanitization, tree-sitter syntax checks.
-- **apps/api** — FastAPI job API: `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider`.
+- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic).
 - **apps/web** — React + Monaco workspace (side-by-side editor/findings) + History + Settings.
 
 ## How it works
@@ -27,7 +27,7 @@ flowchart TB
   JM --> RS["ReviewService pipeline"]
 
   RS -->|validating| TS["Source: tree-sitter<br/>deterministic syntax check"]
-  RS -->|analyzing| AG["Source: core-reviewer agent<br/>ModelProvider — Ollama · OpenAI-compatible · BYO"]
+  RS -->|analyzing| AG["6 specialist agents (LangGraph, concurrent)<br/>security · performance · logic · quality · docs · tests<br/>ModelProvider — Ollama · OpenAI · Anthropic · BYO"]
   RS -.->|"enriching (Inc 5)"| EXT["Sources: SARIF scanners<br/>Semgrep · Bandit · SonarQube · CodeRabbit"]
 
   TS --> AGG["Aggregator<br/>dedupe + merge by location + category"]
@@ -49,6 +49,7 @@ flowchart TB
   `security / performance / logic / style` findings.
 - **SARIF scanners** (dashed = future Inc 5): Semgrep/Bandit/etc. plug in as additional sources via a
   single SARIF→Findings mapper; the aggregator attaches them to existing findings as extra citations.
+- **Multi-agent (Inc 2):** a LangGraph graph fans out to 6 concurrent specialist agents (each with its own focused prompt + optional per-agent model); the aggregator dedupes/merges their findings and ranks by severity. Local models serialize on one Ollama instance — use a cloud provider for true parallelism.
 
 > The dashed `enriching` stage is reserved in the status contract + UI today; it activates when the
 > scanner fan-out lands in Inc 5. Multi-agent fan-out (parallel specialist agents) arrives in Inc 2.

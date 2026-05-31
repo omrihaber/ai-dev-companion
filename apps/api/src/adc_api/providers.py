@@ -1,70 +1,86 @@
 from __future__ import annotations
 
 import os
-from typing import Protocol
+from typing import Protocol, TypeVar
 
-from adc_api.schemas import RawFinding, ReviewOutput
+from pydantic import BaseModel
 
-REVIEW_SYSTEM_PROMPT = (
-    "You are a senior code reviewer. Analyze the {language} code and report concrete "
-    "issues across security, performance, logic, and style. For each issue give a short "
-    "title, a clear description, an actionable recommendation, and the 1-based line range. "
-    "Only report real issues."
-)
+T = TypeVar("T", bound=BaseModel)
 
 
 class ModelProvider(Protocol):
     name: str
     model: str
 
-    async def review(self, code: str, language: str) -> list[RawFinding]: ...
+    async def complete_structured(
+        self, *, system: str, user: str, response_model: type[T]
+    ) -> T: ...
 
 
 class MockProvider:
-    """Deterministic provider for tests/CI (no network)."""
+    """Deterministic provider for tests/CI (no network). Returns seeded findings."""
 
-    name = "core-reviewer"
+    name = "mock"
     model = "mock"
 
     def __init__(self, seed: list[dict] | None = None) -> None:
         self._seed = seed or []
 
-    async def review(self, code: str, language: str) -> list[RawFinding]:
-        return [RawFinding(**item) for item in self._seed]
+    async def complete_structured(self, *, system: str, user: str, response_model: type[T]) -> T:
+        return response_model.model_validate({"findings": self._seed})
 
 
 class OllamaProvider:
-    """OpenAI-compatible provider (Ollama by default; works for any OpenAI-compatible endpoint)."""
+    """OpenAI-compatible provider (Ollama default). JSON mode for reliable structured output."""
 
-    name = "core-reviewer"
+    name = "openai-compatible"
 
     def __init__(self, base_url: str, model: str, api_key: str = "ollama") -> None:
         import instructor
         from openai import AsyncOpenAI
 
         self.model = model
-        # JSON mode (not the default TOOLS/function-calling mode): local models served via
-        # Ollama's OpenAI-compatible endpoint handle structured output far more reliably as
-        # constrained JSON than as tool calls. Works for hosted OpenAI-compatible APIs too.
         self._client = instructor.from_openai(
             AsyncOpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
         )
 
-    async def review(self, code: str, language: str) -> list[RawFinding]:
-        out: ReviewOutput = await self._client.chat.completions.create(
+    async def complete_structured(self, *, system: str, user: str, response_model: type[T]) -> T:
+        return await self._client.chat.completions.create(
             model=self.model,
-            response_model=ReviewOutput,
+            response_model=response_model,
             messages=[
-                {"role": "system", "content": REVIEW_SYSTEM_PROMPT.format(language=language)},
-                {"role": "user", "content": f"```{language}\n{code}\n```"},
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
             ],
         )
-        return out.findings
 
 
-def build_provider() -> ModelProvider:
-    kind = os.getenv("ADC_MODEL_PROVIDER", "ollama")
-    model = os.getenv("ADC_MODEL", "qwen2.5-coder:7b")
+class AnthropicProvider:
+    """Native Anthropic provider via instructor."""
+
+    name = "anthropic"
+
+    def __init__(self, model: str, api_key: str, max_tokens: int = 2048) -> None:
+        import instructor
+        from anthropic import AsyncAnthropic
+
+        self.model = model
+        self._max_tokens = max_tokens
+        self._client = instructor.from_anthropic(AsyncAnthropic(api_key=api_key))
+
+    async def complete_structured(self, *, system: str, user: str, response_model: type[T]) -> T:
+        return await self._client.messages.create(
+            model=self.model,
+            max_tokens=self._max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            response_model=response_model,
+        )
+
+
+def build_provider(model: str | None = None, kind: str | None = None) -> ModelProvider:
+    kind = kind or os.getenv("ADC_MODEL_PROVIDER", "ollama")
+    model = model or os.getenv("ADC_MODEL", "qwen2.5-coder:7b")
     if kind == "mock":
         return MockProvider(seed=[{
             "category": "security", "severity": "high", "title": "SQL injection vulnerability",
@@ -76,7 +92,8 @@ def build_provider() -> ModelProvider:
     if kind == "openai":
         return OllamaProvider(
             os.getenv("ADC_OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            model,
-            api_key=os.environ["ADC_OPENAI_API_KEY"],
+            model, api_key=os.environ["ADC_OPENAI_API_KEY"],
         )
+    if kind == "anthropic":
+        return AnthropicProvider(model, os.environ["ADC_ANTHROPIC_API_KEY"])
     raise ValueError(f"unknown provider: {kind}")

@@ -39,3 +39,6 @@ playwright-report/
 # Logs / data
 *.log
 *.db
+
+# Vite cache
+.vite/

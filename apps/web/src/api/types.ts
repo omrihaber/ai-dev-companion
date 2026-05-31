@@ -1,4 +1,4 @@
-export type Category = "security" | "performance" | "logic" | "style" | "syntax";
+export type Category = "security" | "performance" | "logic" | "quality" | "docs" | "tests" | "syntax";
 export type Severity = "info" | "low" | "medium" | "high" | "critical";
 export type ReviewStatus =
   | "queued" | "validating" | "analyzing" | "enriching" | "finalizing" | "done" | "failed";

@@ -16,7 +16,7 @@ class ReviewRequest(_Camel):
 
 class RawFinding(_Camel):
     """Shape the LLM returns; ReviewService converts these into Findings."""
-    category: Literal["security", "performance", "logic", "style"]
+    category: Literal["security", "performance", "logic", "quality", "docs", "tests"]
     severity: Literal["info", "low", "medium", "high", "critical"]
     title: str
     description: str
