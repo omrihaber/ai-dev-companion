@@ -17,7 +17,8 @@ async def test_create_runs_review_and_streams_until_terminal():
         stages.append(event.stage)
     assert stages[-1] == "done"
     result = jm.get(review_id)
-    assert result.status == "done" and len(result.findings) == 6
+    # all six agents return the same seeded finding -> aggregator merges into one card
+    assert result.status == "done" and len(result.findings) == 1
 
 @pytest.mark.asyncio
 async def test_create_rejects_bad_submission():

@@ -94,11 +94,18 @@ Topology: `START → dispatch → {security, performance, logic, quality, docs, 
 The `OnProgress` callback is passed so node entry/exit can emit per-agent SSE sub-status.
 
 ### 2.4 Aggregator (dedup + citation-merge)
-Merge findings sharing the **same `category` and overlapping line range** into one: union `sources[]`
-(dedup by name), take **max severity**, keep the longest/most-specific title+description+recommendation,
-widen the location to the overlap union. tree-sitter `syntax` findings pass through untouched. Rank the
-final list by severity (critical→info), then by start line. This logic lives in a standalone, directly
-unit-tested function — **the seam Inc 5 reuses** to attach scanner findings as extra citations.
+Merge findings that describe the **same issue — overlapping line range AND similar title — across
+categories** into one card: union `sources[]` (dedup by name), pick the **representative** (highest
+severity, ties broken by category priority: security>logic>performance>quality>docs>tests), widen the
+location to the union, then rank by severity (critical→info) then start line. Title similarity uses
+token-containment (`|A∩B| / min(|A|,|B|) ≥ 0.6`) so "SQL Injection" and "Untested SQL Injection"
+merge but unrelated same-line issues don't. tree-sitter `syntax` findings always pass through unmerged.
+
+> **Why cross-category:** specialist agents (especially smaller local models) often flag the *same*
+> underlying issue under different categories (e.g. SQL injection surfaced by both the security and
+> quality agents). Merging by location+title collapses these into one card citing every agent, rather
+> than N near-duplicate cards. This logic lives in a standalone, directly unit-tested function —
+> **the seam Inc 5 reuses** to attach external-scanner findings as extra citations.
 
 ---
 

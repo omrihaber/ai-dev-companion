@@ -5,9 +5,12 @@ from adc_api.review_service import ReviewService
 
 
 @pytest.mark.asyncio
-async def test_run_produces_multi_category_findings_and_per_agent_progress():
+async def test_all_agents_run_and_identical_findings_merge_with_per_agent_progress():
+    # Shared mock: every agent returns the SAME seeded issue (same title + line). The aggregator
+    # merges them across categories into ONE card citing all six agents — and per-agent progress
+    # still reaches "done" for each, proving the fan-out ran.
     agents = build_agents(provider=MockProvider(seed=[{
-        "category": "security", "severity": "high", "title": "issue",
+        "category": "security", "severity": "high", "title": "SQL injection",
         "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
     }]))
     events: list[tuple[str, dict]] = []
@@ -17,8 +20,12 @@ async def test_run_produces_multi_category_findings_and_per_agent_progress():
         on_progress=lambda e: events.append((e.stage, e.sub_status)),
     )
     assert result.status == "done"
-    cats = {f.category for f in result.findings}
-    assert {"security", "performance", "logic", "quality", "docs", "tests"} <= cats
+    # all six agents flagged the same issue -> merged into one card citing all six sources
+    assert len(result.findings) == 1
+    assert {s.name for s in result.findings[0].sources} == {
+        "security-agent", "performance-agent", "logic-agent",
+        "quality-agent", "docs-agent", "tests-agent",
+    }
     stages = [s for s, _ in events]
     assert "analyzing" in stages and "done" in stages
     final_sub = [sub for s, sub in events if s == "analyzing"][-1]
