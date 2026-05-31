@@ -24,13 +24,18 @@ class JobManager:
         self._provider_factory = provider_factory
         self._results: dict[str, ReviewResult] = {}
         self._queues: dict[str, asyncio.Queue[ProgressEvent | None]] = {}
+        # Hold strong refs: the event loop only weakly references tasks, so a
+        # fire-and-forget review could otherwise be garbage-collected mid-run.
+        self._tasks: set[asyncio.Task[None]] = set()
 
     def create(self, *, language: str, code: str, max_bytes: int, max_lines: int) -> str:
         code = validate_submission(language, code, max_bytes=max_bytes, max_lines=max_lines)
         review_id = str(uuid.uuid4())
         self._results[review_id] = ReviewResult(id=review_id, language=language, model="pending")
         self._queues[review_id] = asyncio.Queue()
-        asyncio.create_task(self._run(review_id, language, code))
+        task = asyncio.create_task(self._run(review_id, language, code))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
         return review_id
 
     async def _run(self, review_id: str, language: str, code: str) -> None:
