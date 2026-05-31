@@ -1,0 +1,22 @@
+[tool.uv.workspace]
+# Globs so members resolve as packages are created incrementally (Inc order).
+# apps/web is a JS package (no pyproject) and must be excluded from the uv workspace.
+members = ["packages/*", "apps/*"]
+exclude = ["apps/web"]
+
+# Workspace-wide dev tooling so `uv run ruff` works locally and in CI.
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.black]
+line-length = 100
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-q"

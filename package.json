@@ -1,0 +1,11 @@
+{
+  "name": "ai-dev-companion",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "devDependencies": { "turbo": "^2.1.0", "prettier": "^3.3.0" },
+  "scripts": {
+    "format": "prettier --write \"apps/web/**/*.{ts,tsx,css}\"",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  }
+}

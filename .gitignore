@@ -1,0 +1,41 @@
+# Brainstorm/visual-companion artifacts
+.superpowers/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Env / secrets
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Node / JS
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+.playwright/
+
+# Logs / data
+*.log
+*.db
