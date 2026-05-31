@@ -31,3 +31,21 @@ smaller engineering/CI debt not tied to a whole increment.
   build/dependency change (Tailwind config, component generation) better scoped as its own increment.
 - **Multi-tab SSE.** The per-review event queue is single-consumer; two tabs streaming the same
   review would split events. Acceptable for Inc 1; revisit if multi-tab/shared sessions matter.
+
+## Product / UX backlog
+- **History: open a past review (restore state).** Today the History page is a read-only list.
+  Clicking a row should reopen that review — load its findings into the right pane and the original
+  code into the editor — so you can revisit/inspect what was scanned. Needs the API to return the
+  stored code (or a code reference) alongside the `ReviewResult`.
+- **Settings: make it editable, not just informational.** The Settings page currently only displays
+  the env-based config. It should let the user change the provider/model (and enter a BYO key) from
+  the UI and have it take effect (persist per-user once auth lands in Inc 6; until then, a
+  runtime-overridable server setting + restart-free provider rebuild).
+- **Navbar: surface upcoming entry points ("coming soon").** Add nav items for the planned
+  integrations — **CI / GitHub** (webhook + PR triggers, Inc 4), plus repo/branch/commit ingestion —
+  shown as disabled "coming soon" links so the roadmap is visible in-product.
+- **Scan scope: deltas vs. full version (needs replanning).** When reviewing a git ref / PR, let the
+  user choose to scan **only the diff/deltas** or the **entire version**. This is non-trivial: it
+  affects ingestion, the retrieval/context strategy (Inc 3), how findings map to changed lines, and
+  the citation/location model. Flag for a dedicated design pass when Inc 4 (git ingestion + triggers)
+  is planned — likely a first-class `scope: "delta" | "full"` option on the review request.
