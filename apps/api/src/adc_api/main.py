@@ -9,17 +9,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
+from adc_api.agents import SpecialistAgent, build_agents
 from adc_api.jobs import JobManager
-from adc_api.providers import ModelProvider, build_provider
 from adc_api.schemas import ReviewRequest
 
 
-def create_app(provider_factory: Callable[[], ModelProvider] | None = None) -> FastAPI:
+def create_app(
+    agents_factory: Callable[[], list[SpecialistAgent]] | None = None,
+) -> FastAPI:
     app = FastAPI(title="AI Dev Companion API")
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
-    jm = JobManager(provider_factory=provider_factory or build_provider)
+    jm = JobManager(agents_factory=agents_factory or build_agents)
     max_bytes = int(os.getenv("ADC_MAX_CODE_BYTES", "100000"))
     max_lines = int(os.getenv("ADC_MAX_CODE_LINES", "2000"))
 

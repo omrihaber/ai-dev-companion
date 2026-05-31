@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Callable
 from adc_core.models import ReviewResult
 from adc_core.sanitization import validate_submission
 
-from adc_api.providers import ModelProvider
+from adc_api.agents import SpecialistAgent, build_agents
 from adc_api.review_service import ReviewService
 from adc_api.schemas import ProgressEvent
 
@@ -20,8 +20,8 @@ class JobManager:
     Swappable for arq+Redis in Inc 2+.
     """
 
-    def __init__(self, provider_factory: Callable[[], ModelProvider]) -> None:
-        self._provider_factory = provider_factory
+    def __init__(self, agents_factory: Callable[[], list[SpecialistAgent]] = build_agents) -> None:
+        self._agents_factory = agents_factory
         self._results: dict[str, ReviewResult] = {}
         self._queues: dict[str, asyncio.Queue[ProgressEvent | None]] = {}
         # Hold strong refs: the event loop only weakly references tasks, so a
@@ -44,7 +44,7 @@ class JobManager:
         def on_progress(event: ProgressEvent) -> None:
             queue.put_nowait(event)
 
-        svc = ReviewService(provider=self._provider_factory())
+        svc = ReviewService(agents=self._agents_factory())
         result = await svc.run(
             review_id=review_id, language=language, code=code, on_progress=on_progress
         )

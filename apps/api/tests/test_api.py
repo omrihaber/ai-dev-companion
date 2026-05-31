@@ -1,14 +1,15 @@
 import pytest
+from adc_api.agents import build_agents
 from adc_api.main import create_app
 from adc_api.providers import MockProvider
 from httpx import ASGITransport, AsyncClient
 
 
 def _app():
-    return create_app(provider_factory=lambda: MockProvider(seed=[{
+    return create_app(agents_factory=lambda: build_agents(provider=MockProvider(seed=[{
         "category": "security", "severity": "high", "title": "SQLi",
         "description": "concat", "recommendation": "params", "start_line": 2, "end_line": 2,
-    }]))
+    }])))
 
 @pytest.mark.asyncio
 async def test_post_review_then_get_result():
