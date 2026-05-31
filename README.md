@@ -10,7 +10,7 @@ Open-source and local-first — runs with **zero API keys** using a local model 
 
 ## Architecture
 - **packages/core** — Findings schema, sanitization, tree-sitter syntax checks.
-- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic).
+- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic). Reviews are persisted in **Postgres** and run by an **arq/Redis worker** (or in-process via `ADC_BACKEND=memory`).
 - **apps/web** — React + Monaco workspace (side-by-side editor/findings) + History + Settings.
 
 ## How it works
@@ -57,11 +57,14 @@ flowchart TB
 ## Quick start
 ```bash
 cp .env.example .env
-task up            # postgres + ollama
-task pull-model    # pull qwen2.5-coder:7b (or set ADC_MODEL_PROVIDER=openai + a key)
+task up            # postgres + redis + ollama
+task migrate       # create the reviews table (alembic)
+task pull-model    # qwen2.5-coder:7b  (or set ADC_MODEL_PROVIDER=openai/anthropic + a key)
 task api           # http://localhost:8000
+task worker        # arq worker (runs the reviews)
 task web           # http://localhost:5173
 ```
+> No Postgres/Redis? Run the lightweight in-process mode: set `ADC_BACKEND=memory` and skip `task migrate`/`task worker` — reviews run inside the API process (non-durable; good for a quick demo).
 (No `task`/go-task? The Taskfile.yml commands are short; run them directly — e.g. `docker compose -f infra/compose/docker-compose.yml up -d`, `uv run uvicorn adc_api.main:app --port 8000` from `apps/api`, `pnpm --filter web dev`.)
 
 ## API

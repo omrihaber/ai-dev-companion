@@ -8,3 +8,5 @@ tasks:
   test:py: { cmds: ["uv sync --all-packages", "uv run pytest packages/core apps/api"] }
   test:web: { dir: apps/web, cmds: ["pnpm test"] }
   pull-model: { cmds: ["docker compose -f infra/compose/docker-compose.yml exec ollama ollama pull qwen2.5-coder:7b"] }
+  migrate: { dir: apps/api, cmds: ["uv run alembic upgrade head"] }
+  worker: { dir: apps/api, cmds: ["uv run arq adc_api.worker.WorkerSettings"] }
