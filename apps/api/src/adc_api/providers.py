@@ -60,6 +60,12 @@ class OllamaProvider:
 def build_provider() -> ModelProvider:
     kind = os.getenv("ADC_MODEL_PROVIDER", "ollama")
     model = os.getenv("ADC_MODEL", "qwen2.5-coder:7b")
+    if kind == "mock":
+        return MockProvider(seed=[{
+            "category": "security", "severity": "high", "title": "SQL injection vulnerability",
+            "description": "User input concatenated into SQL string.",
+            "recommendation": "Use parameterized queries.", "start_line": 2, "end_line": 2,
+        }])
     if kind == "ollama":
         return OllamaProvider(os.getenv("ADC_OLLAMA_BASE_URL", "http://localhost:11434/v1"), model)
     if kind == "openai":
