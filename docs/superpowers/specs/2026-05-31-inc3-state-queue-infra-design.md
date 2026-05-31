@@ -40,7 +40,7 @@ GET /reviews, /reviews/{id} ─repo.read─▶ Postgres (live + durable)
 ```
 
 ### 2.1 Seams (interfaces)
-- **`ReviewRepository`** (`async`): `create(review_id, language) -> None`, `set_status(review_id, status, *, sub_status=None) -> None`, `save_result(result: ReviewResult) -> None`, `get(review_id) -> ReviewResult | None`, `list_all() -> list[ReviewResult]`.
+- **`ReviewRepository`** (`async`): `create(review_id, language) -> None`, `set_status(review_id, status) -> None`, `save_result(result: ReviewResult) -> None`, `get(review_id) -> ReviewResult | None`, `list_all() -> list[ReviewResult]`. (Per-agent `sub_status` is *not* persisted — it isn't part of the `ReviewResult` contract; it stays live-only over SSE. Persisted `status` is what makes GET/History accurate.)
   - Prod: `SqlReviewRepository` (SQLAlchemy async). Tests: `InMemoryReviewRepository` + the SQL impl unit-tested on SQLite.
 - **`EventBus`** (`async`): `publish(review_id, event: ProgressEvent) -> None`, `subscribe(review_id) -> AsyncIterator[ProgressEvent]`.
   - Prod: `RedisEventBus` (pub/sub channel `review:{id}`, terminal event closes the stream). Tests: `InMemoryEventBus`.
@@ -60,7 +60,6 @@ A single `reviews` table:
 | error | str \| null | |
 | duration_ms | int \| null | |
 | created_at | datetime (tz) | |
-| sub_status | JSON | per-agent progress (for live GET) |
 | findings | `JSON().with_variant(JSONB, "postgresql")` | the `Finding[]` array |
 
 Async engine via `asyncpg` (`ADC_DATABASE_URL`). One Alembic migration creates the table; applied via
@@ -72,17 +71,16 @@ Using `JSON().with_variant(JSONB, ...)` lets prod use JSONB while SQLite-backed 
 `apps/api/src/adc_api/worker.py`: arq `WorkerSettings` (Redis from `ADC_REDIS_URL`, `max_tries=1`) and:
 
 ```
-async def run_review(ctx, review_id, language, code):
-    repo, bus = ctx["repo"], ctx["bus"]
-    agents = build_agents()
+async def run_review_core(review_id, language, code, *, repo, bus, agents):
     svc = ReviewService(agents=agents)
-    def on_progress(event):           # called by ReviewService per stage
-        await repo.set_status(review_id, event.stage, sub_status=event.sub_status)  # via run_coroutine/queue
-        await bus.publish(review_id, event)
-    result = await svc.run(review_id=..., language=..., code=..., on_progress=on_progress)
-    await repo.save_result(result)
-    await bus.publish(review_id, terminal ProgressEvent)   # signals SSE complete
+    # bridge: on_progress (sync) -> queue -> drain (async) persists + publishes NON-terminal events
+    result = await svc.run(review_id=..., language=..., code=..., on_progress=<push to queue>)
+    await repo.save_result(result)                       # persist BEFORE the terminal SSE signal
+    await bus.publish(review_id, ProgressEvent(stage=result.status))   # terminal -> SSE 'complete'
 ```
+**Ordering matters:** non-terminal stages are persisted (`set_status`) and published live during the run;
+the **terminal** event is published only *after* `save_result`, so a client that sees "done" over SSE and
+then calls `GET /reviews/{id}` always finds the saved findings (no race).
 
 **Sync→async bridge (specified, not left open):** `ReviewService.run`'s `on_progress` is sync
 (`Callable[[ProgressEvent], None]`, unchanged from Inc 2). The worker creates an `asyncio.Queue`; the
