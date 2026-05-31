@@ -77,6 +77,10 @@ class ReviewState(TypedDict):
 
 Topology: `START → dispatch → {security, performance, logic, quality, docs, tests} (concurrent)
 → aggregate → END`.
+
+> **Implementation note:** the `dispatch` step is conceptual — the compiled graph wires
+> `START → {specialists} → aggregate → END` directly, and `ReviewService` seeds the initial state
+> (code, language, tree-sitter syntax findings) at invoke time. No separate `dispatch` node is needed.
 - `dispatch` seeds state, **including the deterministic tree-sitter `syntax` findings** (computed by
   `ReviewService` and passed into the initial state) so the aggregator ranks everything together.
 - Each specialist node runs `agent.analyze`, converts `RawFinding → Finding` (uuid, location,
