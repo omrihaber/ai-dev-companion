@@ -4,6 +4,10 @@
 members = ["packages/*", "apps/*"]
 exclude = ["apps/web"]
 
+# Workspace-wide dev tooling so `uv run ruff` works locally and in CI.
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
