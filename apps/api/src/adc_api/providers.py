@@ -43,7 +43,12 @@ class OllamaProvider:
         from openai import AsyncOpenAI
 
         self.model = model
-        self._client = instructor.from_openai(AsyncOpenAI(base_url=base_url, api_key=api_key))
+        # JSON mode (not the default TOOLS/function-calling mode): local models served via
+        # Ollama's OpenAI-compatible endpoint handle structured output far more reliably as
+        # constrained JSON than as tool calls. Works for hosted OpenAI-compatible APIs too.
+        self._client = instructor.from_openai(
+            AsyncOpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
+        )
 
     async def review(self, code: str, language: str) -> list[RawFinding]:
         out: ReviewOutput = await self._client.chat.completions.create(
