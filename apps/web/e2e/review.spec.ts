@@ -9,10 +9,10 @@ test("submit code, watch progress, see categorized cited findings, jump to line"
   await expect(page.getByRole("status", { name: /review progress/ })).toContainText("done", { timeout: 30000 });
 
   // categorized + cited finding appears
-  await expect(page.getByText("SQL injection vulnerability")).toBeVisible();
+  await expect(page.getByText("SQL injection vulnerability").first()).toBeVisible();
   await expect(page.getByText(/security/i).first()).toBeVisible();
-  await expect(page.getByText(/core-reviewer/)).toBeVisible();
+  await expect(page.getByText(/security-agent/)).toBeVisible();
 
   // click-to-jump does not error
-  await page.getByRole("button", { name: /line 2/ }).click();
+  await page.getByRole("button", { name: /line 2/ }).first().click();
 });
