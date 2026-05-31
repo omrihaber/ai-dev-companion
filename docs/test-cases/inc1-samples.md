@@ -10,7 +10,7 @@ def get_user_data(user_id):
     cursor.execute(query)
     return cursor.fetchall()
 ```
-**Expected:** Security/high — SQL injection (use parameterized queries) · Style/low — missing type hints & docstring · Performance/low — use `fetchone()` if a single row is expected.
+**Expected:** Security/high — SQL injection (use parameterized queries) · Quality/low — missing type hints & docstring · Performance/low — use `fetchone()` if a single row is expected.
 
 ## 2. TypeScript — unsafe any + missing await
 ```typescript
@@ -19,7 +19,7 @@ async function load(id) {
   return res.json();
 }
 ```
-**Expected:** Logic/high — missing `await` on `fetch` (`res` is a Promise) · Style/medium — parameter `id` untyped · Security/low — unsanitized id in URL.
+**Expected:** Logic/high — missing `await` on `fetch` (`res` is a Promise) · Quality/medium — parameter `id` untyped · Security/low — unsanitized id in URL.
 
 ## 3. Java — resource leak
 ```java

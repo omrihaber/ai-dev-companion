@@ -40,3 +40,20 @@ def test_rejects_invalid_category():
             title="t", description="d", recommendation="r",
             location=Location(start_line=1, end_line=1),
         )
+
+
+def test_category_supports_new_specialist_categories():
+    for cat in ("quality", "docs", "tests"):
+        f = Finding(
+            id="x", category=cat, severity="low", title="t", description="d",
+            recommendation="r", location=Location(start_line=1, end_line=1),
+        )
+        assert f.category == cat
+
+
+def test_category_rejects_removed_style_value():
+    with pytest.raises(ValidationError):
+        Finding(
+            id="x", category="style", severity="low", title="t", description="d",
+            recommendation="r", location=Location(start_line=1, end_line=1),
+        )

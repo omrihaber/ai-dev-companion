@@ -7,7 +7,7 @@ from adc_core.sanitization import SubmissionError
 @pytest.mark.asyncio
 async def test_create_runs_review_and_streams_until_terminal():
     jm = JobManager(provider_factory=lambda: MockProvider(seed=[{
-        "category": "style", "severity": "low", "title": "t",
+        "category": "quality", "severity": "low", "title": "t",
         "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
     }]))
     review_id = jm.create(language="python", code="x=1\n", max_bytes=1000, max_lines=100)
