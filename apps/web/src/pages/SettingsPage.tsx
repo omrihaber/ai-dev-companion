@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { BASE } from "../api/client";
 
 export function SettingsPage() {
   return (
@@ -6,7 +6,7 @@ export function SettingsPage() {
       <h2>Settings — Model Provider</h2>
       <p>The active model provider is configured via environment variables (see <code>.env.example</code>):</p>
       <ul>
-        <li><code>ADC_MODEL_PROVIDER</code> — <code>ollama</code> (default) | <code>openai</code> | <code>anthropic</code></li>
+        <li><code>ADC_MODEL_PROVIDER</code> — <code>ollama</code> (default) | <code>openai</code> <em>(Anthropic adapter lands in Inc 2)</em></li>
         <li><code>ADC_MODEL</code> — e.g. <code>qwen2.5-coder:7b</code></li>
         <li>BYO: set <code>ADC_OPENAI_BASE_URL</code> + <code>ADC_OPENAI_API_KEY</code></li>
       </ul>

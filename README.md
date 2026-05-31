@@ -46,4 +46,5 @@ Set `ADC_MODEL_PROVIDER=openai`, `ADC_OPENAI_BASE_URL`, `ADC_OPENAI_API_KEY`, `A
 OpenAI-compatible endpoint, including hosted Qwen). Anthropic adapter lands in Inc 2.
 
 ## Known limitations
-Single snippet only (multi-file = Inc 3); in-memory job store (Redis = Inc 2+); no auth yet (Inc 6).
+Single snippet only (multi-file = Inc 3); in-memory job store (Redis = Inc 2+); no auth yet (Inc 6);
+CORS is open (`*`) for local dev and must be restricted before deployment.

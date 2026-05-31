@@ -60,6 +60,9 @@ class ReviewService:
             raw = await self._provider.review(code, language)
             findings += [_to_finding(r, self._provider.name) for r in raw]
 
+            # NOTE: the "enriching" stage (external SARIF scanners) is part of the
+            # ReviewStatus contract and shown in the UI stepper, but is intentionally
+            # skipped in Inc 1 — it is emitted once the scanner fan-out lands in Inc 5.
             emit("finalizing")
             result.findings = findings
             result.summary = _summarize(findings)

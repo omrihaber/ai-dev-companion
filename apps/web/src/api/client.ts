@@ -1,6 +1,6 @@
 import type { ReviewResult } from "./types";
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export async function createReview(language: string, code: string): Promise<string> {
   const res = await fetch(`${BASE}/api/reviews`, {
