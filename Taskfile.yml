@@ -4,6 +4,7 @@ tasks:
   down: { cmds: ["docker compose -f infra/compose/docker-compose.yml down"] }
   api: { dir: apps/api, cmds: ["uv run uvicorn adc_api.main:app --reload --port 8000"] }
   web: { dir: apps/web, cmds: ["pnpm dev"] }
-  test:py: { cmds: ["uv run pytest packages/core apps/api"] }
+  install: { desc: "Install all Python workspace members (editable)", cmds: ["uv sync --all-packages"] }
+  test:py: { cmds: ["uv sync --all-packages", "uv run pytest packages/core apps/api"] }
   test:web: { dir: apps/web, cmds: ["pnpm test"] }
   pull-model: { cmds: ["docker compose -f infra/compose/docker-compose.yml exec ollama ollama pull qwen2.5-coder:7b"] }
