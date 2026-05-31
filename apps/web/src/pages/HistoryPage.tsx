@@ -5,8 +5,13 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export function HistoryPage() {
   const [items, setItems] = useState<ReviewResult[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch(`${BASE}/api/reviews`).then((r) => r.json()).then(setItems).catch(() => setItems([]));
+    fetch(`${BASE}/api/reviews`)
+      .then((r) => r.json())
+      .then(setItems)
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
   }, []);
   return (
     <div style={{ padding: 16 }}>
@@ -21,7 +26,8 @@ export function HistoryPage() {
           ))}
         </tbody>
       </table>
-      {items.length === 0 && <p>No reviews yet.</p>}
+      {loading && <p>Loading…</p>}
+      {!loading && items.length === 0 && <p>No reviews yet.</p>}
     </div>
   );
 }

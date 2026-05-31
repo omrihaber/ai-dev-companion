@@ -1,5 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
-export function SettingsPage() {
-    return (_jsxs("div", { style: { padding: 16 }, children: [_jsx("h2", { children: "Settings \u2014 Model Provider" }), _jsxs("p", { children: ["The active model provider is configured via environment variables (see ", _jsx("code", { children: ".env.example" }), "):"] }), _jsxs("ul", { children: [_jsxs("li", { children: [_jsx("code", { children: "ADC_MODEL_PROVIDER" }), " \u2014 ", _jsx("code", { children: "ollama" }), " (default) | ", _jsx("code", { children: "openai" }), " | ", _jsx("code", { children: "anthropic" })] }), _jsxs("li", { children: [_jsx("code", { children: "ADC_MODEL" }), " \u2014 e.g. ", _jsx("code", { children: "qwen2.5-coder:7b" })] }), _jsxs("li", { children: ["BYO: set ", _jsx("code", { children: "ADC_OPENAI_BASE_URL" }), " + ", _jsx("code", { children: "ADC_OPENAI_API_KEY" })] })] }), _jsxs("p", { children: ["API base: ", _jsx("code", { children: BASE }), ". An in-app editable form arrives in Inc 2 (model abstraction)."] })] }));
-}
