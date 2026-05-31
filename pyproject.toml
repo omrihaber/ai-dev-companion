@@ -1,5 +1,8 @@
 [tool.uv.workspace]
-members = ["packages/core", "apps/api"]
+# Globs so members resolve as packages are created incrementally (Inc order).
+# apps/web is a JS package (no pyproject) and must be excluded from the uv workspace.
+members = ["packages/*", "apps/*"]
+exclude = ["apps/web"]
 
 [tool.ruff]
 line-length = 100
