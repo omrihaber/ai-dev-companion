@@ -31,3 +31,11 @@ async def test_post_review_rejects_unsupported_language():
     async with AsyncClient(transport=transport, base_url="http://t") as c:
         r = await c.post("/api/reviews", json={"language": "cobol", "code": "x"})
         assert r.status_code == 422
+
+@pytest.mark.asyncio
+async def test_list_reviews_returns_created_review():
+    transport = ASGITransport(app=_app())
+    async with AsyncClient(transport=transport, base_url="http://t") as c:
+        await c.post("/api/reviews", json={"language": "python", "code": "x=1\n"})
+        listing = (await c.get("/api/reviews")).json()
+        assert isinstance(listing, list) and len(listing) >= 1

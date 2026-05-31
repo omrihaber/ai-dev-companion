@@ -46,6 +46,10 @@ def create_app(provider_factory: Callable[[], ModelProvider] | None = None) -> F
 
         return EventSourceResponse(gen())
 
+    @app.get("/api/reviews")
+    async def list_reviews() -> list[dict]:
+        return [r.model_dump(by_alias=True, mode="json") for r in jm.list_all()]
+
     @app.get("/api/reviews/{review_id}")
     async def get_review(review_id: str) -> dict:
         result = jm.get(review_id)

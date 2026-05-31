@@ -61,3 +61,6 @@ class JobManager:
 
     def get(self, review_id: str) -> ReviewResult | None:
         return self._results.get(review_id)
+
+    def list_all(self) -> list[ReviewResult]:
+        return list(self._results.values())
