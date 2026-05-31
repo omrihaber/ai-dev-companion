@@ -4,7 +4,7 @@ import time
 import uuid
 from collections.abc import Callable
 
-from adc_core.models import Finding, Location, ReviewResult, Source
+from adc_core.models import Finding, Location, ReviewResult, ReviewStatus, Source
 from adc_core.syntax import check_syntax
 
 from adc_api.providers import ModelProvider
@@ -48,9 +48,9 @@ class ReviewService:
         started = time.monotonic()
         result = ReviewResult(id=review_id, language=language, model=self._provider.model)
 
-        def emit(stage: str, **kw: object) -> None:
-            result.status = stage  # type: ignore[assignment]
-            on_progress(ProgressEvent(review_id=review_id, stage=stage, **kw))  # type: ignore[arg-type]
+        def emit(stage: ReviewStatus, **kw: object) -> None:
+            result.status = stage
+            on_progress(ProgressEvent(review_id=review_id, stage=stage, **kw))
 
         try:
             emit("validating")
