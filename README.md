@@ -13,6 +13,46 @@ Open-source and local-first — runs with **zero API keys** using a local model 
 - **apps/api** — FastAPI job API: `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider`.
 - **apps/web** — React + Monaco workspace (side-by-side editor/findings) + History + Settings.
 
+## How it works
+
+A review is an **async job**. The `ReviewService` pipeline runs each **source**, then an
+**aggregator** dedupes/merges their results by `location + category` — so a single finding can
+**cite multiple sources** (e.g. our agent *and* Semgrep). Every finding carries `sources[]`, and the
+UI shows those as clickable citation chips.
+
+```mermaid
+flowchart TB
+  U["User submits code<br/>(Monaco editor)"] --> POST["POST /api/reviews"]
+  POST --> JM["JobManager<br/>async job + per-review event bus"]
+  JM --> RS["ReviewService pipeline"]
+
+  RS -->|validating| TS["Source: tree-sitter<br/>deterministic syntax check"]
+  RS -->|analyzing| AG["Source: core-reviewer agent<br/>ModelProvider — Ollama · OpenAI-compatible · BYO"]
+  RS -.->|"enriching (Inc 5)"| EXT["Sources: SARIF scanners<br/>Semgrep · Bandit · SonarQube · CodeRabbit"]
+
+  TS --> AGG["Aggregator<br/>dedupe + merge by location + category"]
+  AG --> AGG
+  EXT -.-> AGG
+
+  AGG --> RESULT["ReviewResult.findings<br/>category · severity · location · recommendation · sources[]"]
+  RESULT --> GET["GET /api/reviews/:id"]
+  GET --> CARDS["Findings UI<br/>category groups · severity badges<br/>source citations · click → jump to line"]
+
+  JM -.->|progress events| SSEUI["SSE stream → progress stepper"]
+
+  classDef future stroke-dasharray: 5 5;
+  class EXT future;
+```
+
+- **`tree-sitter`** (deterministic): real parse errors → `syntax` findings, no LLM needed.
+- **`core-reviewer`** (the AI agent): one structured LLM call via the pluggable `ModelProvider` →
+  `security / performance / logic / style` findings.
+- **SARIF scanners** (dashed = future Inc 5): Semgrep/Bandit/etc. plug in as additional sources via a
+  single SARIF→Findings mapper; the aggregator attaches them to existing findings as extra citations.
+
+> The dashed `enriching` stage is reserved in the status contract + UI today; it activates when the
+> scanner fan-out lands in Inc 5. Multi-agent fan-out (parallel specialist agents) arrives in Inc 2.
+
 ## Quick start
 ```bash
 cp .env.example .env

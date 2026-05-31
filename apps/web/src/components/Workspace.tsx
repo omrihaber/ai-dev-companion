@@ -30,8 +30,9 @@ export function Workspace() {
             {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
-        <Editor height="60vh" language={language} value={code} onMount={onMount}
-          onChange={(v) => setCode(v ?? "")} options={{ minimap: { enabled: false } }} />
+        <Editor height="60vh" language={language} theme="vs-dark" value={code} onMount={onMount}
+          onChange={(v) => setCode(v ?? "")}
+          options={{ minimap: { enabled: false }, fontSize: 13, padding: { top: 10 } }} />
         <button className="review-btn" disabled={running} onClick={() => start(language, code)}>
           {running ? "Reviewing…" : "Review Code ▶"}
         </button>

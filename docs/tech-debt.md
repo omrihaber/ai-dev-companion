@@ -24,5 +24,10 @@ smaller engineering/CI debt not tied to a whole increment.
 - **Configurable CORS.** `allow_origins=["*"]` is local-dev only; make it env-driven before deploy.
 
 ## Frontend
+- **Adopt shadcn/ui + Tailwind.** The UI currently uses a hand-rolled dark theme (CSS variables in
+  `apps/web/src/styles.css`) — clean and dependency-free, but a proper component system (shadcn/ui +
+  Tailwind + Radix primitives) would give accessible, consistent components (dialogs, dropdowns,
+  toasts, tabs for the input modes) as the surface grows in later increments. Deferred because it's a
+  build/dependency change (Tailwind config, component generation) better scoped as its own increment.
 - **Multi-tab SSE.** The per-review event queue is single-consumer; two tabs streaming the same
   review would split events. Acceptable for Inc 1; revisit if multi-tab/shared sessions matter.
