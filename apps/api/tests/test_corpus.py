@@ -64,3 +64,26 @@ def test_ingest_files_drops_dotgit_and_strips_dot_slash_prefix():
     ])
     paths = [f.path for f in out]
     assert paths == ["app/main.py"]           # .git/* ignored; leading ./ stripped exactly
+
+
+def test_ingest_zip_rejects_bad_archive():
+    with pytest.raises(IngestError):
+        ingest_zip(b"not a zip")
+
+
+def test_ingest_zip_rejects_absolute_path():
+    data = _zip_bytes({"/etc/passwd": "x"})
+    with pytest.raises(IngestError):
+        ingest_zip(data)
+
+
+def test_ingest_zip_skips_oversized_entry():
+    data = _zip_bytes({"big.py": "x" * 5000, "ok.py": "y = 1\n"})
+    out = ingest_zip(data, max_file_bytes=1000)
+    assert [f.path for f in out] == ["ok.py"]
+
+
+def test_ingest_files_rejects_over_file_count_short_circuits():
+    files = [{"path": f"f{i}.py", "content": "x=1"} for i in range(5)]
+    with pytest.raises(IngestError):
+        ingest_files(files, max_files=2)

@@ -62,8 +62,8 @@ def _normalize(
                 f"submission exceeds {max_total_bytes} bytes (total source too large)"
             )
         out.append(CorpusFile(path=path, content=content, language=_language_for(path)))
-    if len(out) > max_files:
-        raise IngestError(f"submission has {len(out)} files; max is {max_files}")
+        if len(out) > max_files:
+            raise IngestError(f"submission has more than {max_files} files; max is {max_files}")
     if not out:
         raise IngestError("no reviewable files after applying the ignore rules")
     return out
@@ -92,10 +92,10 @@ def _caps(
 def ingest_files(
     files: list[dict],
     *,
-    max_files=None,
-    max_total_bytes=None,
-    max_file_bytes=None,
-    ignore_globs=None,
+    max_files: int | None = None,
+    max_total_bytes: int | None = None,
+    max_file_bytes: int | None = None,
+    ignore_globs: str | None = None,
 ) -> list[CorpusFile]:
     raw = [(f["path"], f.get("content", "")) for f in files]
     return _normalize(raw, **_caps(max_files, max_total_bytes, max_file_bytes, ignore_globs))
@@ -104,10 +104,10 @@ def ingest_files(
 def ingest_zip(
     data: bytes,
     *,
-    max_files=None,
-    max_total_bytes=None,
-    max_file_bytes=None,
-    ignore_globs=None,
+    max_files: int | None = None,
+    max_total_bytes: int | None = None,
+    max_file_bytes: int | None = None,
+    ignore_globs: str | None = None,
 ) -> list[CorpusFile]:
     raw: list[tuple[str, str]] = []
     try:
@@ -121,12 +121,17 @@ def ingest_zip(
             name = info.filename
             if name.startswith("/") or ".." in name.replace("\\", "/").split("/"):
                 raise IngestError(f"zip entry escapes the archive root: {name!r}")
-            # zip-bomb guard: trust the declared uncompressed size before reading
-            if info.file_size > (max_file_bytes or settings.max_file_bytes) * 8:
-                raise IngestError(f"zip entry too large: {name!r}")
+            cap = max_file_bytes if max_file_bytes is not None else settings.max_file_bytes
             try:
-                content = zf.read(info).decode("utf-8")
-            except (UnicodeDecodeError, OSError):
+                with zf.open(info) as fh:
+                    blob = fh.read(cap + 1)  # bounded: never decompress more than cap+1 bytes
+            except (OSError, zipfile.BadZipFile):
+                continue
+            if len(blob) > cap:
+                continue  # oversized / decompression bomb: skip (consistent with ingest_files)
+            try:
+                content = blob.decode("utf-8")
+            except UnicodeDecodeError:
                 continue  # binary / unreadable: skip
             raw.append((name, content))
     return _normalize(raw, **_caps(max_files, max_total_bytes, max_file_bytes, ignore_globs))
