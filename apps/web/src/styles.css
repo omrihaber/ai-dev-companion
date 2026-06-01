@@ -277,3 +277,8 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .findings-head { font-size: 12px; color: #9aa4b2; margin: 6px 0; }
 .findings-head code { color: #cdd3dc; }
 .findings-pane .hint { color: #6b7280; font-size: 13px; }
+
+/* Three-pane layout: let panes shrink to the grid row and scroll internally (no page overflow) */
+.workspace-3 .pane { min-height: 0; }
+.workspace-3 .editor-pane { display: flex; flex-direction: column; overflow: hidden; }
+.workspace-3 .findings-pane { overflow-y: auto; }
