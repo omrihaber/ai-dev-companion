@@ -57,3 +57,10 @@ def test_category_rejects_removed_style_value():
             id="x", category="style", severity="low", title="t", description="d",
             recommendation="r", location=Location(start_line=1, end_line=1),
         )
+
+
+def test_review_status_no_longer_allows_enriching():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        ReviewResult(id="r1", language="python", model="m", status="enriching")
