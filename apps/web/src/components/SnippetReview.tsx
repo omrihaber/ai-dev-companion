@@ -10,6 +10,9 @@ const LANGUAGES = ["python", "typescript", "javascript", "java", "go", "rust", "
 const EXT: Record<string, string> = {
   python: "py", typescript: "ts", javascript: "js", java: "java", go: "go", rust: "rs", bash: "sh",
 };
+const LANG_ICON: Record<string, string> = {
+  python: "🐍", typescript: "🔷", javascript: "🟨", java: "☕", go: "🐹", rust: "🦀", bash: "🐚",
+};
 // Monaco's language id for bash is "shell"; the rest match our ids.
 const monacoLang = (l: string) => (l === "bash" ? "shell" : l);
 const SAMPLE =
@@ -42,7 +45,7 @@ export function SnippetReview() {
       <section className="pane editor-pane">
         <div className="controls">
           <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="language">
-            {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+            {LANGUAGES.map((l) => <option key={l} value={l}>{LANG_ICON[l] ?? "📄"} {l}</option>)}
           </select>
           <ModelPicker value={model} onChange={setModel} />
         </div>

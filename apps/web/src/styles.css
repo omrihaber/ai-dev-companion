@@ -310,3 +310,7 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .model-pick { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0; }
 .model-pick select { background: #161a22; border: 1px solid var(--border, #2a2f3a); color: #cdd3dc;
   border-radius: 8px; padding: 5px 8px; font-size: 13px; max-width: 220px; }
+
+/* Source chips: distinguish AI agents from static scanners */
+.chip-agent { border: 1px solid #2f4068; }
+.chip-tool { border: 1px solid #4a3a2a; }
