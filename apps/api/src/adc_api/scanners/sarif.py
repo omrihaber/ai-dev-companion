@@ -25,11 +25,13 @@ def _severity(result: dict, rule: dict) -> Severity:
     return _LEVEL.get(result.get("level", "warning"), "medium")
 
 
-def _region(result: dict) -> dict | None:
+def _physical(result: dict) -> tuple[str | None, dict] | None:
     for loc in result.get("locations", []):
-        region = loc.get("physicalLocation", {}).get("region")
+        phys = loc.get("physicalLocation", {})
+        region = phys.get("region")
         if region and region.get("startLine"):
-            return region
+            uri = (phys.get("artifactLocation", {}).get("uri") or "").lstrip("./") or None
+            return uri, region
     return None
 
 
@@ -54,9 +56,10 @@ def sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]:
             for r in run.get("tool", {}).get("driver", {}).get("rules", [])
         }
         for result in run.get("results", []):
-            region = _region(result)
-            if region is None:
+            physical = _physical(result)
+            if physical is None:
                 continue
+            file_path, region = physical
             rule = rules.get(result.get("ruleId"), {})
             message = (result.get("message", {}).get("text") or "").strip()
             title = _title(result, rule, message)
@@ -74,6 +77,7 @@ def sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]:
                     description=message or title,
                     recommendation=recommendation,
                     location=Location(
+                        file=file_path,
                         start_line=region["startLine"],
                         end_line=region.get("endLine", region["startLine"]),
                         start_col=region.get("startColumn"),

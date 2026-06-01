@@ -77,9 +77,12 @@ async def _docker_available() -> bool:
 
 
 @pytest.mark.asyncio
-async def test_real_scanners_flag_sql_injection():
+async def test_real_scanners_flag_sql_injection(tmp_path):
     if not await _docker_available():
         pytest.skip("Docker not available (run `task scanners-build` first)")
+
+    import tempfile
+    from pathlib import Path
 
     from adc_api.scanners.bandit import BanditScanner
     from adc_api.scanners.semgrep import SemgrepScanner
@@ -89,8 +92,10 @@ async def test_real_scanners_flag_sql_injection():
         "    q = \"SELECT * FROM users WHERE id = \" + str(uid)\n"
         "    cursor.execute(q)\n"
     )
-    bandit = await BanditScanner().scan(code, "python")
-    semgrep = await SemgrepScanner().scan(code, "python")
+    with tempfile.TemporaryDirectory() as work_dir:
+        (Path(work_dir) / "snippet.py").write_text(code)
+        bandit = await BanditScanner().scan_path(work_dir)
+        semgrep = await SemgrepScanner().scan_path(work_dir)
     all_findings = bandit + semgrep
     assert all_findings, "expected Semgrep and/or Bandit to report a finding"
     assert all(f.sources and f.sources[0].type == "tool" for f in all_findings)

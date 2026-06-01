@@ -13,6 +13,7 @@ from adc_api.aggregator import aggregate
 class ReviewState(TypedDict):
     code: str
     language: str
+    work_dir: str  # corpus directory; consumed by scanner nodes via scan_path
     findings: Annotated[list[Finding], operator.add]  # concurrent specialist/scanner appends
     failures: Annotated[list[str], operator.add]      # node names that errored (for surfacing)
     result: list[Finding]                             # aggregator output (last-write-wins)
@@ -32,7 +33,7 @@ def _specialist_node(agent: SpecialistAgent):
 def _scanner_node(scanner):
     async def node(state: ReviewState) -> dict:
         try:
-            found = await scanner.scan(state["code"], state["language"])
+            found = await scanner.scan_path(state["work_dir"])
         except Exception:  # noqa: BLE001 — isolate a scanner failure from the review
             return {"findings": [], "failures": [scanner.name]}
         return {"findings": found}

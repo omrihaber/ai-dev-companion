@@ -70,3 +70,24 @@ def test_skips_results_without_a_location():
         "results": [{"ruleId": "x", "level": "error", "message": {"text": "no loc"}}],
     }]}
     assert sarif_to_findings(sarif, "semgrep") == []
+
+
+def test_maps_artifact_uri_to_location_file():
+    findings = sarif_to_findings(SEMGREP_SARIF, "semgrep")
+    assert findings[0].location.file == "snippet.py"
+
+
+def test_strips_leading_dot_slash_from_file():
+    sarif = {
+        "runs": [{
+            "tool": {"driver": {"rules": []}},
+            "results": [{
+                "ruleId": "x", "level": "error", "message": {"text": "bad"},
+                "locations": [{"physicalLocation": {
+                    "artifactLocation": {"uri": "./app/db.py"},
+                    "region": {"startLine": 3, "endLine": 3},
+                }}],
+            }],
+        }]
+    }
+    assert sarif_to_findings(sarif, "bandit")[0].location.file == "app/db.py"

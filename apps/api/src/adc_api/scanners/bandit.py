@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
 
 from adc_core.models import Finding
 
@@ -18,19 +16,17 @@ class BanditScanner:
         self._timeout = timeout
         self._image = image
 
-    async def scan(self, code: str, language: str) -> list[Finding]:
-        if language not in self.languages or not await docker_available():
+    async def scan_path(self, work_dir: str) -> list[Finding]:
+        if not await docker_available():
             return []
-        with tempfile.TemporaryDirectory() as d:
-            (Path(d) / "snippet.py").write_text(code)
-            try:
-                out = await run_in_container(
-                    image=self._image,
-                    cmd=["bandit", "-r", "/src", "-f", "sarif"],
-                    host_dir=d, timeout=self._timeout,
-                )
-            except Exception:  # noqa: BLE001
-                return []
+        try:
+            out = await run_in_container(
+                image=self._image,
+                cmd=["bandit", "-r", "/src", "-f", "sarif"],
+                host_dir=work_dir, timeout=self._timeout,
+            )
+        except Exception:  # noqa: BLE001
+            return []
         try:
             return sarif_to_findings(json.loads(out), self.name)
         except (ValueError, KeyError):
