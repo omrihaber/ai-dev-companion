@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import JSZip from "jszip";
 import { useReviewStream } from "../hooks/useReviewStream";
 import { getFile } from "../api/client";
 import type { FileCoverage, FileInput, Finding } from "../api/types";
 import { FileTree } from "./FileTree";
 import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
+import { dataTransferToInputs, filesToInputs, langOf } from "./ingest";
 
 const CEILING = 150;
 const SAMPLE: FileInput = {
@@ -15,8 +15,6 @@ const SAMPLE: FileInput = {
     'def get_user_data(user_id):\n    query = "SELECT * FROM users WHERE id = " + str(user_id)\n    cursor.execute(query)\n    return cursor.fetchall()\n',
   language: "python",
 };
-const EXT_LANG: Record<string, string> = { py: "python", ts: "typescript", tsx: "typescript", js: "javascript", java: "java" };
-const langOf = (p: string) => EXT_LANG[p.split(".").pop() ?? ""] ?? "plaintext";
 
 export function Workspace({ loadId }: { loadId?: string }) {
   const [files, setFiles] = useState<FileInput[]>([SAMPLE]);
@@ -24,6 +22,8 @@ export function Workspace({ loadId }: { loadId?: string }) {
   const [active, setActive] = useState<string>(SAMPLE.path);
   const [viewContent, setViewContent] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const { start, rerun, load, progress, result, running, error, reviewId } = useReviewStream();
 
@@ -81,47 +81,57 @@ export function Workspace({ loadId }: { loadId?: string }) {
     ed.revealLineInCenter(line); ed.setPosition({ lineNumber: line, column: 1 }); ed.focus();
   };
 
-  const addFiles = useCallback(async (fileList: FileList) => {
-    const next: FileInput[] = [];
-    for (const f of Array.from(fileList)) {
-      if (f.name.endsWith(".zip")) {
-        const zip = await JSZip.loadAsync(f);
-        for (const [path, entry] of Object.entries(zip.files)) {
-          if (!entry.dir) next.push({ path, content: await entry.async("string"), language: langOf(path) });
-        }
-      } else {
-        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
-        next.push({ path: rel, content: await f.text(), language: langOf(rel) });
-      }
+  const applyInputs = useCallback((next: FileInput[]) => {
+    if (!next.length) {
+      setUploadMsg("No reviewable files found (binaries, deps, and large files are ignored).");
+      return;
     }
-    if (next.length) {
-      setFiles(next);
-      setMarked(new Set(next.map((f) => f.path)));
-      setActive(next[0].path);
-    }
+    const sorted = [...next].sort((a, b) => a.path.localeCompare(b.path));
+    setUploadMsg(`Loaded ${sorted.length} file${sorted.length === 1 ? "" : "s"}.`);
+    setFiles(sorted);
+    setMarked(new Set(sorted.map((f) => f.path)));
+    setActive(sorted[0].path);
   }, []);
+
+  const onDrop = useCallback(async (e: DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    setUploadMsg("Reading dropped files…");
+    applyInputs(await dataTransferToInputs(e.dataTransfer));
+  }, [applyInputs]);
 
   const review = () => start({ files, marked: [...marked] });
 
   return (
     <div className="workspace-3">
-      <aside className="pane tree-pane">
+      <aside className={`pane tree-pane ${dragActive ? "drag-active" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); if (!dragActive) setDragActive(true); }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setDragActive(false); }}
+        onDrop={(e) => void onDrop(e)}>
         <div className="controls">
-          <label className="upload-btn">
-            Add files / folder
+          <label className="upload-btn" title="Add individual files">
+            📄 Files
             <input type="file" multiple style={{ display: "none" }}
-              // @ts-expect-error non-standard but widely supported
-              webkitdirectory=""
-              onChange={(e) => e.target.files && void addFiles(e.target.files)} />
+              onChange={(e) => e.target.files && void filesToInputs(e.target.files).then(applyInputs)} />
           </label>
-          <label className="upload-btn">
-            Upload .zip
+          <label className="upload-btn" title="Add a whole folder">
+            📁 Folder
+            <input type="file" multiple style={{ display: "none" }}
+              // @ts-expect-error webkitdirectory is non-standard but widely supported
+              webkitdirectory=""
+              onChange={(e) => e.target.files && void filesToInputs(e.target.files).then(applyInputs)} />
+          </label>
+          <label className="upload-btn" title="Add a .zip archive">
+            🗜 .zip
             <input type="file" accept=".zip" style={{ display: "none" }}
-              onChange={(e) => e.target.files && void addFiles(e.target.files)} />
+              onChange={(e) => e.target.files && void filesToInputs(e.target.files).then(applyInputs)} />
           </label>
         </div>
+        {uploadMsg && <div className="upload-msg">{uploadMsg}</div>}
         <FileTree paths={allPaths} selected={marked} onSelectedChange={setMarked}
           active={active} onOpen={setActive} hits={hits} coverage={coverageByPath} />
+        <div className="drop-hint">Drag &amp; drop a folder or files here</div>
+        {dragActive && <div className="drop-overlay">Drop to load files</div>}
       </aside>
 
       <section className="pane editor-pane">

@@ -10,8 +10,8 @@ test("multi-file review: coverage banner, per-file findings, re-run", async ({ p
   zip.file("util.py", "x = 1\n");
   const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
-  // Upload via the .zip picker (second input[type="file"]).
-  await page.locator('input[type="file"]').nth(1).setInputFiles([
+  // Upload via the .zip picker (stable selector regardless of button order).
+  await page.locator('input[accept=".zip"]').setInputFiles([
     { name: "upload.zip", mimeType: "application/zip", buffer: zipBuffer },
   ]);
 
