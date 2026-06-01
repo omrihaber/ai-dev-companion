@@ -1,5 +1,8 @@
+import tempfile
+
 import pytest
 from adc_api.agents import build_agents
+from adc_api.corpus import CorpusStore
 from adc_api.events import InMemoryEventBus
 from adc_api.main import create_app
 from adc_api.providers import MockProvider
@@ -11,43 +14,85 @@ from httpx import ASGITransport, AsyncClient
 def _app():
     repo = InMemoryReviewRepository()
     bus = InMemoryEventBus()
+    store = CorpusStore(tempfile.mkdtemp())
     provider = MockProvider(seed=[{
         "category": "security", "severity": "high", "title": "SQLi",
-        "description": "concat", "recommendation": "params", "start_line": 2, "end_line": 2,
+        "description": "concat", "recommendation": "params", "start_line": 1, "end_line": 1,
     }])
     queue = InlineReviewQueue(
-        repo, bus, agents_factory=lambda: build_agents(provider=provider)
+        repo, bus, store, agents_factory=lambda: build_agents(provider=provider)
     )
-    return create_app(repo=repo, bus=bus, queue=queue)
+    return create_app(repo=repo, bus=bus, queue=queue, store=store)
+
+
+async def _drain(c, review_id):
+    async with c.stream("GET", f"/api/reviews/{review_id}/events") as s:
+        async for _ in s.aiter_lines():
+            pass
 
 
 @pytest.mark.asyncio
-async def test_post_review_then_get_result():
-    transport = ASGITransport(app=_app())
-    async with AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.post("/api/reviews", json={"language": "python", "code": "x=1\n"})
+async def test_multifile_review_carries_files_and_coverage():
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        r = await c.post("/api/reviews", json={
+            "files": [{"path": "a.py", "content": "x=1\n"}, {"path": "b.py", "content": "y=2\n"}],
+            "marked": ["a.py", "b.py"],
+        })
         assert r.status_code == 202
-        review_id = r.json()["reviewId"]
-        async with c.stream("GET", f"/api/reviews/{review_id}/events") as s:
-            async for _ in s.aiter_lines():
-                pass
-        result = (await c.get(f"/api/reviews/{review_id}")).json()
+        rid = r.json()["reviewId"]
+        await _drain(c, rid)
+        result = (await c.get(f"/api/reviews/{rid}")).json()
         assert result["status"] == "done"
-        assert any(f["category"] == "security" for f in result["findings"])
+        assert result["coverage"]["filesTotal"] == 2
+        assert {f["location"]["file"] for f in result["findings"]} == {"a.py", "b.py"}
 
 
 @pytest.mark.asyncio
-async def test_post_review_rejects_unsupported_language():
-    transport = ASGITransport(app=_app())
-    async with AsyncClient(transport=transport, base_url="http://t") as c:
-        r = await c.post("/api/reviews", json={"language": "cobol", "code": "x"})
-        assert r.status_code == 422
+async def test_legacy_code_still_works_and_rejects_bad_language():
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        ok = await c.post("/api/reviews", json={"language": "python", "code": "x=1\n"})
+        assert ok.status_code == 202
+        bad = await c.post("/api/reviews", json={"language": "cobol", "code": "x"})
+        assert bad.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_list_reviews_returns_created_review():
-    transport = ASGITransport(app=_app())
-    async with AsyncClient(transport=transport, base_url="http://t") as c:
-        await c.post("/api/reviews", json={"language": "python", "code": "x=1\n"})
+async def test_get_file_serves_content_and_blocks_traversal():
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        rid = (await c.post("/api/reviews", json={
+            "files": [{"path": "a.py", "content": "hello\n"}], "marked": ["a.py"],
+        })).json()["reviewId"]
+        await _drain(c, rid)
+        good = await c.get(f"/api/reviews/{rid}/file", params={"path": "a.py"})
+        assert good.status_code == 200 and good.json()["content"] == "hello\n"
+        bad = await c.get(f"/api/reviews/{rid}/file", params={"path": "../../etc/passwd"})
+        assert bad.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_rerun_reuses_corpus_with_new_marks():
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        rid = (await c.post("/api/reviews", json={
+            "files": [{"path": "a.py", "content": "x=1\n"}, {"path": "b.py", "content": "y=2\n"}],
+            "marked": ["a.py"],
+        })).json()["reviewId"]
+        await _drain(c, rid)
+        rr = await c.post(f"/api/reviews/{rid}/rerun", json={"marked": ["a.py", "b.py"]})
+        assert rr.status_code == 202
+        rid2 = rr.json()["reviewId"]
+        await _drain(c, rid2)
+        result = (await c.get(f"/api/reviews/{rid2}")).json()
+        assert result["parentReviewId"] == rid
+        assert result["coverage"]["filesAgentReviewed"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_includes_file_count():
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        rid = (await c.post("/api/reviews", json={
+            "files": [{"path": "a.py", "content": "x=1\n"}], "marked": ["a.py"],
+        })).json()["reviewId"]
+        await _drain(c, rid)
         listing = (await c.get("/api/reviews")).json()
-        assert isinstance(listing, list) and len(listing) >= 1
+        row = next(x for x in listing if x["id"] == rid)
+        assert row["fileCount"] == 1
