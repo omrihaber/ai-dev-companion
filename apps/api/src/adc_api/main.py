@@ -66,11 +66,18 @@ def create_app(
     )
 
     async def _start(files: list[CorpusFile], marked: list[str]) -> str:
+        valid = {f.path for f in files}
+        marked_valid = [m for m in marked if m in valid]
+        if len(marked_valid) > settings.agent_file_ceiling:
+            raise HTTPException(
+                status_code=422,
+                detail=(f"{len(marked_valid)} files marked for deep review; "
+                        f"max is {settings.agent_file_ceiling}. Narrow your selection."),
+            )
         review_id = str(uuid.uuid4())
         store.write(review_id, files)
         await repo.create(review_id, (files[0].language or "text"))
-        valid = {f.path for f in files}
-        await queue.enqueue(review_id, [m for m in marked if m in valid])
+        await queue.enqueue(review_id, marked_valid)
         return review_id
 
     @app.post("/api/reviews", status_code=202)

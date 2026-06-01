@@ -87,6 +87,19 @@ async def test_rerun_reuses_corpus_with_new_marks():
 
 
 @pytest.mark.asyncio
+async def test_marks_over_ceiling_rejected_at_ingest(monkeypatch):
+    from adc_api.settings import settings
+    monkeypatch.setattr(settings, "agent_file_ceiling", 1)
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        r = await c.post("/api/reviews", json={
+            "files": [{"path": "a.py", "content": "x=1\n"}, {"path": "b.py", "content": "y=2\n"}],
+            "marked": ["a.py", "b.py"],
+        })
+        assert r.status_code == 422
+        assert "Narrow your selection" in r.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_list_includes_file_count():
     async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
         rid = (await c.post("/api/reviews", json={

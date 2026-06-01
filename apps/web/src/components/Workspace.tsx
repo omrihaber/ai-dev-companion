@@ -30,6 +30,14 @@ export function Workspace({ loadId }: { loadId?: string }) {
   useEffect(() => { if (loadId) void load(loadId); }, [loadId, load]);
 
   useEffect(() => {
+    if (result?.coverage) {
+      setMarked(new Set(result.coverage.files.filter((c) => c.agentReviewed).map((c) => c.path)));
+    }
+    // seed once when a review's coverage becomes available (load or completion)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result?.id]);
+
+  useEffect(() => {
     if (!reviewId || !result) { setViewContent(null); return; }
     let on = true;
     void getFile(reviewId, active).then((c) => { if (on) setViewContent(c); }).catch(() => setViewContent(null));
