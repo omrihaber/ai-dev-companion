@@ -9,7 +9,7 @@ class Scanner(Protocol):
     name: str
     languages: set[str]
 
-    async def scan(self, code: str, language: str) -> list[Finding]: ...
+    async def scan_path(self, work_dir: str) -> list[Finding]: ...
 
 
 def build_scanners() -> list[Scanner]:

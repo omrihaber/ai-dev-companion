@@ -1,7 +1,6 @@
-import asyncio
-
 import pytest
 from adc_api.agents import build_agents
+from adc_api.corpus import CorpusStore, ingest_files
 from adc_api.events import InMemoryEventBus
 from adc_api.providers import MockProvider
 from adc_api.repository import InMemoryReviewRepository
@@ -9,20 +8,22 @@ from adc_api.worker import run_review_core
 
 
 @pytest.mark.asyncio
-async def test_run_review_core_persists_final_and_publishes_progress():
+async def test_run_review_core_loads_corpus_and_saves_result(tmp_path):
+    store = CorpusStore(str(tmp_path))
+    store.write("rev1", ingest_files([{"path": "a.py", "content": "x = 1\n"}]))
     repo = InMemoryReviewRepository()
+    await repo.create("rev1", "python")
     bus = InMemoryEventBus()
-    await repo.create("r1", "python")
-    agen = await bus.subscribe("r1")  # subscribe before the run so we see live events
-    agents = build_agents(provider=MockProvider(seed=[{
+    provider = MockProvider(seed=[{
         "category": "security", "severity": "high", "title": "SQLi",
-        "description": "d", "recommendation": "r", "start_line": 2, "end_line": 2,
-    }]))
-    task = asyncio.create_task(
-        run_review_core("r1", "python", "x = 1\n", repo=repo, bus=bus, agents=agents)
+        "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
+    }])
+
+    await run_review_core(
+        "rev1", ["a.py"], repo=repo, bus=bus, store=store,
+        agents=build_agents(provider=provider),
     )
-    stages = [ev.stage async for ev in agen]
-    await task
-    assert "analyzing" in stages and stages[-1] == "done"   # terminal published after save
-    final = await repo.get("r1")
-    assert final.status == "done" and len(final.findings) == 1  # 6 agents -> merged into one card
+    result = await repo.get("rev1")
+    assert result.status == "done"
+    assert result.coverage.files_total == 1
+    assert result.findings[0].location.file == "a.py"

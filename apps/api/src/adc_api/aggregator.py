@@ -39,6 +39,8 @@ def _mergeable(head: Finding, f: Finding) -> bool:
     # `syntax` findings (deterministic parse errors) never merge with agent findings.
     if head.category == "syntax" or f.category == "syntax":
         return False
+    if head.location.file != f.location.file:   # findings only merge within the same file
+        return False
     return _overlap(head.location, f.location) and _similar_title(head.title, f.title)
 
 

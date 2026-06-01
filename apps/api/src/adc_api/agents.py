@@ -27,7 +27,7 @@ class SpecialistAgent:
     system_prompt: str
     provider: ModelProvider
 
-    async def analyze(self, code: str, language: str) -> list[Finding]:
+    async def analyze(self, code: str, language: str, file: str | None = None) -> list[Finding]:
         out: ReviewOutput = await self.provider.complete_structured(
             system=self.system_prompt.format(language=language),
             user=f"```{language}\n{code}\n```",
@@ -41,7 +41,7 @@ class SpecialistAgent:
                 title=raw.title,
                 description=raw.description,
                 recommendation=raw.recommendation,
-                location=Location(start_line=raw.start_line, end_line=raw.end_line),
+                location=Location(file=file, start_line=raw.start_line, end_line=raw.end_line),
                 sources=[Source(type="agent", name=self.name)],
             )
             for raw in out.findings

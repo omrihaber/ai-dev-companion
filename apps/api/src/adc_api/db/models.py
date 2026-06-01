@@ -28,3 +28,5 @@ class ReviewRow(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     findings: Mapped[list] = mapped_column(_JSON, default=list)
+    coverage: Mapped[dict | None] = mapped_column(_JSON, nullable=True)
+    parent_review_id: Mapped[str | None] = mapped_column(String, nullable=True)

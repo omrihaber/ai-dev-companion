@@ -1,6 +1,9 @@
 # Brainstorm/visual-companion artifacts
 .superpowers/
 
+# Per-review corpus work dirs (runtime data; default ADC_WORK_ROOT)
+.adc_work/
+
 # OS / editor
 .DS_Store
 *.swp

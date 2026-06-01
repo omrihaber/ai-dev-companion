@@ -16,5 +16,19 @@ class Settings(BaseSettings):
     max_code_bytes: int = 100_000
     max_code_lines: int = 2_000
 
+    # Multi-file review
+    agent_file_cap: int = 25          # default size of the agent deep-review set
+    agent_file_ceiling: int = 150     # hard max even when files are explicitly marked
+    file_concurrency: int = 4         # files reviewed by agents in parallel
+    max_files: int = 2000             # ingestion cap (file count)
+    max_total_bytes: int = 50_000_000 # ingestion cap (total uncompressed bytes)
+    max_file_bytes: int = 512_000     # ingestion cap (per file)
+    # Comma list of path globs dropped before review (dependencies, VCS, build output, binaries).
+    ignore_globs: str = (
+        ".git/*,node_modules/*,dist/*,build/*,vendor/*,__pycache__/*,"
+        "*.lock,*.min.js,*.map,*.png,*.jpg,*.jpeg,*.gif,*.pdf,*.zip,*.so,*.dll,*.exe,*.bin"
+    )
+    work_root: str = ".adc_work"      # base dir for per-review corpus work dirs
+
 
 settings = Settings()

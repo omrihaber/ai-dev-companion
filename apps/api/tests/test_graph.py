@@ -56,7 +56,7 @@ class _FakeScanner:
     def __init__(self, findings):
         self._findings = findings
 
-    async def scan(self, code, language):
+    async def scan_path(self, work_dir):
         return self._findings
 
 
@@ -79,7 +79,8 @@ async def test_scanner_finding_merges_with_agent_finding_into_one_citation():
     )
     graph = build_graph([agent], [_FakeScanner([scanner_finding])])
     out = await graph.ainvoke(
-        {"code": "q='..'+uid", "language": "python", "findings": [], "result": []}
+        {"code": "q='..'+uid", "language": "python", "work_dir": "/tmp",
+         "findings": [], "result": []}
     )
 
     security = [f for f in out["result"] if f.category == "security"]

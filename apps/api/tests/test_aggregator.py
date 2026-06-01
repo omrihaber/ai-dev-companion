@@ -60,3 +60,41 @@ def test_does_not_merge_across_categories_when_titles_differ():
         _f("performance", "high", "perf-agent", 2, 2, title="Inefficient loop allocation"),
     ])
     assert len(out) == 2
+
+
+def test_same_issue_in_two_files_does_not_merge():
+    from adc_api.aggregator import aggregate
+    from adc_core.models import Finding, Location, Source
+
+    def mk(file):
+        return Finding(
+            id=file, category="security", severity="high", title="SQL injection",
+            description="d", recommendation="r",
+            location=Location(file=file, start_line=2, end_line=2),
+            sources=[Source(type="agent", name="security-agent")],
+        )
+
+    out = aggregate([mk("auth.py"), mk("db.py")])
+    assert len(out) == 2
+    assert {f.location.file for f in out} == {"auth.py", "db.py"}
+
+
+def test_same_file_two_sources_merge_into_one_card():
+    from adc_api.aggregator import aggregate
+    from adc_core.models import Finding, Location, Source
+
+    agent = Finding(
+        id="a", category="security", severity="high", title="SQL injection",
+        description="d", recommendation="r",
+        location=Location(file="auth.py", start_line=2, end_line=2),
+        sources=[Source(type="agent", name="security-agent")],
+    )
+    tool = Finding(
+        id="b", category="security", severity="high", title="SQL injection vector",
+        description="d", recommendation="r",
+        location=Location(file="auth.py", start_line=2, end_line=2),
+        sources=[Source(type="tool", name="bandit")],
+    )
+    out = aggregate([agent, tool])
+    assert len(out) == 1
+    assert {s.name for s in out[0].sources} == {"security-agent", "bandit"}

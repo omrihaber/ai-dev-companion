@@ -17,6 +17,7 @@ dependencies = [
   "alembic>=1.13",
   "arq>=0.26",
   "redis>=5.0",
+  "python-multipart>=0.0.30",
 ]
 
 [tool.uv.sources]

@@ -40,6 +40,18 @@ class Finding(_Camel):
     sources: list[Source] = Field(default_factory=list)
     code_snippet: str | None = None
 
+CoverageReason = Literal["marked", "scanner-hit", "fallback", "not-flagged", "over-cap"]
+
+class FileCoverage(_Camel):
+    path: str
+    agent_reviewed: bool
+    reason: CoverageReason
+
+class Coverage(_Camel):
+    files_total: int = 0
+    files_agent_reviewed: int = 0
+    files: list[FileCoverage] = Field(default_factory=list)
+
 class ReviewResult(_Camel):
     id: str
     status: ReviewStatus = "queued"
@@ -50,3 +62,5 @@ class ReviewResult(_Camel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     duration_ms: int | None = None
     error: str | None = None
+    coverage: Coverage | None = None
+    parent_review_id: str | None = None

@@ -1,7 +1,12 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Route, Routes, useParams } from "react-router-dom";
 import { Workspace } from "./components/Workspace";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
+
+function ReviewView() {
+  const { id } = useParams();
+  return <Workspace loadId={id} />;
+}
 
 export default function App() {
   return (
@@ -14,6 +19,7 @@ export default function App() {
       </nav>
       <Routes>
         <Route path="/" element={<Workspace />} />
+        <Route path="/review/:id" element={<ReviewView />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
