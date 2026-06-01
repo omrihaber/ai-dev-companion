@@ -19,5 +19,7 @@ line-length = 100
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "-q"
-markers = ["integration: requires live Postgres + Redis (run with `task up`)"]
+# Exclude integration tests by default (they need live services / Docker). Run them with
+# `uv run pytest -m integration` after `task up` / `task scanners-build`.
+addopts = "-q -m 'not integration'"
+markers = ["integration: requires live Postgres/Redis/Docker (run with `task up` / `task scanners-build`)"]

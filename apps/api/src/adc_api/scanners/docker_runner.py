@@ -15,14 +15,20 @@ async def docker_available() -> bool:
         return False
 
 
-async def run_in_container(*, image: str, cmd: list[str], host_dir: str, timeout: int) -> str:
-    """Run `image` with the host dir mounted read-only and no network; return stdout.
+async def run_in_container(
+    *, image: str, cmd: list[str], host_dir: str, timeout: int, network: str = "none"
+) -> str:
+    """Run `image` with the host dir mounted read-only; return stdout.
+
+    The code is mounted read-only and is never executed (scanners do static analysis), so a scanner
+    that needs to fetch its rules (Semgrep) may opt into network access via `network="bridge"`;
+    fully-offline scanners (Bandit) keep the default `network="none"` sandbox.
 
     Scanners write SARIF to stdout and may exit non-zero when findings exist, so the exit code is
     intentionally ignored — the caller parses stdout (unparseable output => no findings).
     """
     args = [
-        "docker", "run", "--rm", "--network=none",
+        "docker", "run", "--rm", f"--network={network}",
         "-v", f"{host_dir}:/src:ro", "-w", "/src", image, *cmd,
     ]
     proc = await asyncio.create_subprocess_exec(

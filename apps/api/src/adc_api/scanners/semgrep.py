@@ -26,10 +26,12 @@ class SemgrepScanner:
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / f"snippet.{_EXT[language]}").write_text(code)
             try:
+                # network="bridge": semgrep fetches its rule registry (--config auto) over the
+                # network; the submitted code is mounted read-only and never executed.
                 out = await run_in_container(
                     image=self._image,
-                    cmd=["semgrep", "scan", "--sarif", "--quiet", "--config", "p/default", "/src"],
-                    host_dir=d, timeout=self._timeout,
+                    cmd=["semgrep", "scan", "--sarif", "--quiet", "--config", "auto", "/src"],
+                    host_dir=d, timeout=self._timeout, network="bridge",
                 )
             except Exception:  # noqa: BLE001 — any scan failure degrades to no findings
                 return []
