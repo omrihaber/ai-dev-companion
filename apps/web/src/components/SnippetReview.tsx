@@ -5,8 +5,12 @@ import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
 
 // The simple single-snippet flow (assignment requirement): pick a language, paste one file, review.
-const LANGUAGES = ["python", "typescript", "java"];
-const EXT: Record<string, string> = { python: "py", typescript: "ts", java: "java" };
+const LANGUAGES = ["python", "typescript", "javascript", "java", "go", "rust", "bash"];
+const EXT: Record<string, string> = {
+  python: "py", typescript: "ts", javascript: "js", java: "java", go: "go", rust: "rs", bash: "sh",
+};
+// Monaco's language id for bash is "shell"; the rest match our ids.
+const monacoLang = (l: string) => (l === "bash" ? "shell" : l);
 const SAMPLE =
   'def get_user_data(user_id):\n    query = "SELECT * FROM users WHERE id = " + str(user_id)\n' +
   "    cursor.execute(query)\n    return cursor.fetchall()\n";
@@ -39,7 +43,7 @@ export function SnippetReview() {
             {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
-        <Editor height="60vh" language={language} theme="vs-dark" value={code} onMount={onMount}
+        <Editor height="60vh" language={monacoLang(language)} theme="vs-dark" value={code} onMount={onMount}
           onChange={(v) => setCode(v ?? "")}
           options={{ minimap: { enabled: false }, fontSize: 13, padding: { top: 10 } }} />
         <button className="review-btn" disabled={running} onClick={review}>

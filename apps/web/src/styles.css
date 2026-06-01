@@ -288,3 +288,20 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .tab { background: var(--surface-2, #161a22); border: 1px solid var(--border, #2a2f3a); border-bottom: none;
   color: #9aa4b2; padding: 6px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; }
 .tab.active { background: var(--surface, #1f2430); color: #cdd3dc; font-weight: 600; }
+
+/* Review history table */
+.history-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.history-table th, .history-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border, #2a2f3a); }
+.history-table th { color: #9aa4b2; font-weight: 600; white-space: nowrap; }
+.history-table td.zero { color: #4b5563; text-align: center; }
+.history-table td.has { color: #ffb86b; font-weight: 600; text-align: center; }
+.history-table tr:hover, .history-table tbody tr:hover { background: #1f2430; }
+
+/* Settings form */
+.settings-form { padding: 16px 20px; max-width: 520px; display: flex; flex-direction: column; gap: 14px; }
+.settings-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #9aa4b2; }
+.settings-form input, .settings-form select { background: #161a22; border: 1px solid var(--border, #2a2f3a);
+  color: #cdd3dc; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.settings-form .review-btn { align-self: flex-start; }
+.settings-form .muted { color: #6b7280; }
+.settings-status { color: #7ee2a8; font-size: 13px; }

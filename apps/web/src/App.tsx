@@ -14,7 +14,7 @@ export default function App() {
     <div className="app">
       <nav className="topnav">
         <span className="logo">⬡ AI Dev Companion</span>
-        <Link to="/">New Review</Link>
+        <Link to="/">Review</Link>
         <Link to="/history">History</Link>
         <Link to="/settings">Settings</Link>
       </nav>

@@ -109,3 +109,20 @@ async def test_list_includes_file_count():
         listing = (await c.get("/api/reviews")).json()
         row = next(x for x in listing if x["id"] == rid)
         assert row["fileCount"] == 1
+
+
+@pytest.mark.asyncio
+async def test_settings_get_and_put_roundtrip(tmp_path, monkeypatch):
+    from adc_api.settings import settings as _s
+    monkeypatch.setattr(_s, "config_file", str(tmp_path / "cfg.json"))
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        put = await c.put("/api/settings", json={
+            "provider": "openai", "model": "gpt-4o-mini", "apiKey": "sk-test-123456",
+        })
+        assert put.status_code == 200
+        body = put.json()
+        assert body["provider"] == "openai" and body["model"] == "gpt-4o-mini"
+        assert body["hasKey"] is True and body["keyHint"] == "…3456"
+        assert "sk-test" not in str(body)  # raw key never echoed
+        got = (await c.get("/api/settings")).json()
+        assert got["provider"] == "openai" and got["hasKey"] is True

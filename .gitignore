@@ -45,3 +45,6 @@ playwright-report/
 
 # Vite cache
 .vite/
+
+# Runtime UI-editable provider config
+.adc_config.json

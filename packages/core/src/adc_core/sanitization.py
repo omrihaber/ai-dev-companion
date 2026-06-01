@@ -5,6 +5,10 @@ LANGUAGES: dict[str, str] = {
     "python": "python",
     "typescript": "typescript",
     "java": "java",
+    "rust": "rust",
+    "go": "go",
+    "javascript": "javascript",
+    "bash": "bash",
 }
 
 class SubmissionError(ValueError):

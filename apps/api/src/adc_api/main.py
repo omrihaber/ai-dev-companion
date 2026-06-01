@@ -23,6 +23,27 @@ class RerunRequest(BaseModel):
     marked: list[str] = []
 
 
+class SettingsBody(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+    apiKey: str | None = None
+    baseUrl: str | None = None
+
+
+def _settings_view() -> dict:
+    from adc_api.runtime_config import effective
+
+    eff = effective()
+    key = eff.get("apiKey") or ""
+    return {
+        "provider": eff["provider"],
+        "model": eff["model"],
+        "baseUrl": eff["baseUrl"] or "",
+        "hasKey": bool(key),
+        "keyHint": f"…{key[-4:]}" if len(key) >= 4 else "",
+    }
+
+
 def _default_deps() -> tuple[ReviewRepository, EventBus, ReviewQueue, CorpusStore]:
     store = CorpusStore(settings.work_root)
     if settings.backend == "memory":
@@ -154,6 +175,17 @@ def create_app(
         if result is None:
             raise HTTPException(status_code=404, detail="review not found")
         return result.model_dump(by_alias=True, mode="json")
+
+    @app.get("/api/settings")
+    async def get_settings() -> dict:
+        return _settings_view()
+
+    @app.put("/api/settings")
+    async def put_settings(body: SettingsBody) -> dict:
+        from adc_api.runtime_config import save
+
+        save({k: v for k, v in body.model_dump().items() if v})
+        return _settings_view()
 
     @app.get("/api/health")
     async def health() -> dict:
