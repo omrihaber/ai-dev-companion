@@ -146,6 +146,8 @@ class CorpusStore:
         self._root = Path(root)
 
     def path(self, review_id: str) -> Path:
+        if "/" in review_id or "\\" in review_id or ".." in review_id:
+            raise IngestError(f"invalid review id: {review_id!r}")
         return self._root / review_id
 
     def write(self, review_id: str, files: list[CorpusFile]) -> Path:
@@ -165,6 +167,8 @@ class CorpusStore:
         if not base.exists():
             return out
         for p in sorted(base.rglob("*")):
+            if p.is_symlink():
+                continue
             if p.is_file():
                 rel = p.relative_to(base).as_posix()
                 out.append(CorpusFile(rel, p.read_text("utf-8", "replace"), _language_for(rel)))

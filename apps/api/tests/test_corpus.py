@@ -122,3 +122,11 @@ def test_corpus_store_copy_for_rerun(tmp_path):
     store.write("rev1", ingest_files([{"path": "a.py", "content": "x=1"}]))
     store.copy("rev1", "rev2")
     assert store.read_file("rev2", "a.py") == "x=1"
+
+
+def test_corpus_store_rejects_bad_review_id(tmp_path):
+    from adc_api.corpus import CorpusStore
+
+    store = CorpusStore(str(tmp_path))
+    with pytest.raises(IngestError):
+        store.path("../escape")
