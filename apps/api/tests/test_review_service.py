@@ -59,6 +59,36 @@ async def test_all_agents_failing_surfaces_as_failed_not_clean():
 
 
 @pytest.mark.asyncio
+async def test_scanner_findings_survive_when_all_agents_fail(tmp_path):
+    from adc_core.models import Finding, Location, Source
+
+    class _Boom(MockProvider):
+        async def complete_structured(self, **kwargs):
+            raise RuntimeError("auth error")
+
+    class _FakeScanner:
+        name = "bandit"
+        languages = {"python"}
+
+        async def scan_path(self, work_dir):
+            return [Finding(
+                id="s1", category="security", severity="high", title="SQLi",
+                description="d", recommendation="r",
+                location=Location(file="a.py", start_line=1, end_line=1),
+                sources=[Source(type="tool", name="bandit")],
+            )]
+
+    svc = ReviewService(agents=build_agents(provider=_Boom()), scanners=[_FakeScanner()])
+    result = await svc.run(
+        review_id="rs", files=_files("a.py"), marked={"a.py"},
+        on_progress=lambda e: None, work_dir=str(tmp_path),
+    )
+    # agents all failed, but the scanner found a real issue -> NOT a total failure
+    assert result.status == "done"
+    assert any(s.name == "bandit" for f in result.findings for s in f.sources)
+
+
+@pytest.mark.asyncio
 async def test_progress_reports_bounded_file_counts():
     agents = build_agents(provider=MockProvider(seed=[]))
     svc = ReviewService(agents=agents, scanners=[])

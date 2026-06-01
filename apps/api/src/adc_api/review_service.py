@@ -67,8 +67,8 @@ class ReviewService:
             stream_mode="updates",
         ):
             for node_name, delta in update.items():
-                if node_name in self._agent_names:
-                    if isinstance(delta, dict) and delta.get("failures"):
+                if node_name in self._agent_names and isinstance(delta, dict):
+                    if "failures" in delta:
                         failed.update(delta["failures"])
                     else:
                         any_ok = True
@@ -109,8 +109,8 @@ class ReviewService:
                 files, marked=marked, scanner_findings=scanner_findings,
                 cap=settings.agent_file_cap, ceiling=settings.agent_file_ceiling,
             )
-            agent_set = [f for f in files if f.path in set(agent_paths)]
-            total = len(agent_set)
+            agent_files = [f for f in files if f.path in set(agent_paths)]
+            total = len(agent_files)
             emit("analyzing", sub_status=sub("done", 0, total))
 
             sem = asyncio.Semaphore(settings.file_concurrency)
@@ -129,7 +129,7 @@ class ReviewService:
                 reviewed += 1
                 emit("analyzing", sub_status=sub("done", reviewed, total))
 
-            await asyncio.gather(*(worker(cf) for cf in agent_set))
+            await asyncio.gather(*(worker(cf) for cf in agent_files))
 
             aggregated = aggregate(all_findings)
             result.duration_ms = int((time.monotonic() - started) * 1000)
@@ -139,9 +139,7 @@ class ReviewService:
                 files=coverage_files,
             )
 
-            if agent_set and not any_agent_ok and failed_agents and not [
-                f for f in aggregated if any(s.type == "agent" for s in f.sources)
-            ]:
+            if agent_files and not any_agent_ok and failed_agents and not aggregated:
                 result.error = (
                     f"All review agents failed ({', '.join(sorted(failed_agents))}). "
                     "Check the model provider / API key."
