@@ -3,6 +3,7 @@ import JSZip from "jszip";
 
 test("multi-file review: coverage banner, per-file findings, re-run", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: /Project/ }).click(); // switch from the default Snippet tab
 
   // Build a zip containing two Python files in-process.
   const zip = new JSZip();
