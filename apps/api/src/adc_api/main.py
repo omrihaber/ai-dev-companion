@@ -11,7 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 from adc_api.events import EventBus, InMemoryEventBus, RedisEventBus
 from adc_api.queue import ArqReviewQueue, InlineReviewQueue, ReviewQueue
 from adc_api.repository import InMemoryReviewRepository, ReviewRepository, SqlReviewRepository
-from adc_api.schemas import ReviewRequest
+from adc_api.schemas import ProgressEvent, ReviewRequest
 from adc_api.settings import settings
 
 _TERMINAL = {"done", "failed"}
@@ -66,8 +66,9 @@ def create_app(
             agen = await bus.subscribe(review_id)  # subscribe BEFORE snapshot (race-safe)
             snap = await repo.get(review_id)
             if snap is not None and snap.status in _TERMINAL:
+                ev = ProgressEvent(review_id=review_id, stage=snap.status)
                 yield {"event": "progress",
-                       "data": json.dumps({"reviewId": review_id, "stage": snap.status})}
+                       "data": json.dumps(ev.model_dump(by_alias=True), default=str)}
                 yield {"event": "complete", "data": "{}"}
                 await agen.aclose()
                 return

@@ -1,11 +1,10 @@
 import asyncio
 
+from adc_api.db.models import Base
+from adc_api.settings import settings
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from adc_api.db.models import Base
-from adc_api.settings import settings
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
@@ -30,7 +29,9 @@ async def run_async_migrations() -> None:
 
 
 if context.is_offline_mode():
-    context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=settings.database_url, target_metadata=target_metadata, literal_binds=True
+    )
     with context.begin_transaction():
         context.run_migrations()
 else:

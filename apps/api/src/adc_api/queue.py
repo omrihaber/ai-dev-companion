@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from typing import Protocol
 
@@ -14,7 +15,11 @@ class ReviewQueue(Protocol):
 
 
 class InlineReviewQueue:
-    """Runs the review immediately in-process (tests / the 'memory' backend / quick demo)."""
+    """Runs the review in-process for the 'memory' backend / tests / quick demo.
+
+    Fire-and-forget (like the real arq queue): `enqueue` returns immediately and the review runs as
+    a background task, so the SSE endpoint streams live progress instead of only the final snapshot.
+    """
 
     def __init__(
         self,
@@ -25,12 +30,17 @@ class InlineReviewQueue:
         self._repo = repo
         self._bus = bus
         self._agents_factory = agents_factory
+        self._tasks: set[asyncio.Task[None]] = set()  # strong refs so tasks aren't GC'd
 
     async def enqueue(self, review_id: str, language: str, code: str) -> None:
-        await run_review_core(
-            review_id, language, code,
-            repo=self._repo, bus=self._bus, agents=self._agents_factory(),
+        task = asyncio.create_task(
+            run_review_core(
+                review_id, language, code,
+                repo=self._repo, bus=self._bus, agents=self._agents_factory(),
+            )
         )
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
 
 class ArqReviewQueue:

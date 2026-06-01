@@ -7,7 +7,7 @@ from adc_api.repository import InMemoryReviewRepository
 
 
 @pytest.mark.asyncio
-async def test_inline_queue_runs_review_immediately():
+async def test_inline_queue_runs_review_as_background_task():
     repo = InMemoryReviewRepository()
     bus = InMemoryEventBus()
     await repo.create("r1", "python")
@@ -19,6 +19,9 @@ async def test_inline_queue_runs_review_immediately():
             "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
         }])),
     )
-    await q.enqueue("r1", "python", "x = 1\n")
+    agen = await bus.subscribe("r1")          # subscribe before enqueue to catch live events
+    await q.enqueue("r1", "python", "x = 1\n")  # fire-and-forget (returns immediately)
+    stages = [ev.stage async for ev in agen]    # drains until the terminal event
+    assert stages[-1] == "done"
     final = await repo.get("r1")
     assert final.status == "done" and len(final.findings) == 1

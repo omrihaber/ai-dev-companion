@@ -5,6 +5,7 @@ const STAGES = ["validating", "analyzing", "enriching", "finalizing", "done"] as
 export function ProgressStepper({ progress }: { progress: ProgressEvent | null }) {
   const current = progress?.stage ?? "queued";
   const idx = STAGES.indexOf(current as (typeof STAGES)[number]);
+  const subStatus = progress?.subStatus ?? {};  // tolerate events without subStatus
   return (
     <div className="stepper" role="status" aria-label="review progress">
       {STAGES.map((s, i) => (
@@ -12,9 +13,9 @@ export function ProgressStepper({ progress }: { progress: ProgressEvent | null }
           {i < idx || current === "done" ? "✔" : i === idx ? "⟳" : "·"} {s}
         </span>
       ))}
-      {progress && Object.keys(progress.subStatus).length > 0 && (
+      {Object.keys(subStatus).length > 0 && (
         <div className="substatus">
-          {Object.entries(progress.subStatus).map(([k, v]) => (
+          {Object.entries(subStatus).map(([k, v]) => (
             <span key={k} className="chip">{k}: {v}</span>
           ))}
         </div>
