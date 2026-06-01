@@ -13,7 +13,8 @@ from adc_api.aggregator import aggregate
 class ReviewState(TypedDict):
     code: str
     language: str
-    findings: Annotated[list[Finding], operator.add]  # concurrent specialist appends
+    findings: Annotated[list[Finding], operator.add]  # concurrent specialist/scanner appends
+    failures: Annotated[list[str], operator.add]      # node names that errored (for surfacing)
     result: list[Finding]                             # aggregator output (last-write-wins)
 
 
@@ -22,7 +23,7 @@ def _specialist_node(agent: SpecialistAgent):
         try:
             found = await agent.analyze(state["code"], state["language"])
         except Exception:  # noqa: BLE001 — isolate one agent's failure from the whole review
-            found = []
+            return {"findings": [], "failures": [agent.name]}
         return {"findings": found}
 
     return node
@@ -33,7 +34,7 @@ def _scanner_node(scanner):
         try:
             found = await scanner.scan(state["code"], state["language"])
         except Exception:  # noqa: BLE001 — isolate a scanner failure from the review
-            found = []
+            return {"findings": [], "failures": [scanner.name]}
         return {"findings": found}
 
     return node

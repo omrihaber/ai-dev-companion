@@ -33,6 +33,19 @@ def _region(result: dict) -> dict | None:
     return None
 
 
+def _title(result: dict, rule: dict, message: str) -> str:
+    """Prefer the result message (Semgrep/Bandit put the descriptive text there). Semgrep's
+    shortDescription is a generic 'Semgrep Finding: <ruleId>', so it's only used when it isn't
+    that placeholder; finally fall back to a humanized rule-id segment."""
+    if message:
+        return message.split(". ")[0].strip()[:120]
+    short = (rule.get("shortDescription", {}).get("text") or "").strip()
+    if short and not short.lower().startswith("semgrep finding"):
+        return short[:120]
+    rid = (result.get("ruleId") or "").split(".")[-1].replace("-", " ").replace("_", " ").strip()
+    return (rid[:1].upper() + rid[1:])[:120] if rid else "Scanner finding"
+
+
 def sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]:
     findings: list[Finding] = []
     for run in sarif.get("runs", []):
@@ -46,7 +59,7 @@ def sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]:
                 continue
             rule = rules.get(result.get("ruleId"), {})
             message = (result.get("message", {}).get("text") or "").strip()
-            title = rule.get("shortDescription", {}).get("text") or message or "Scanner finding"
+            title = _title(result, rule, message)
             recommendation = (
                 rule.get("help", {}).get("text")
                 or rule.get("fullDescription", {}).get("text")
@@ -57,7 +70,7 @@ def sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]:
                     id=str(uuid.uuid4()),
                     category="security",
                     severity=_severity(result, rule),
-                    title=title.split("\n")[0][:120],
+                    title=title,
                     description=message or title,
                     recommendation=recommendation,
                     location=Location(
