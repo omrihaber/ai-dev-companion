@@ -1,4 +1,5 @@
 import { Link, Route, Routes, useParams } from "react-router-dom";
+import { NewReview } from "./components/NewReview";
 import { Workspace } from "./components/Workspace";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -18,7 +19,7 @@ export default function App() {
         <Link to="/settings">Settings</Link>
       </nav>
       <Routes>
-        <Route path="/" element={<Workspace />} />
+        <Route path="/" element={<NewReview />} />
         <Route path="/review/:id" element={<ReviewView />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />

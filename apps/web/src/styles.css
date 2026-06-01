@@ -282,3 +282,9 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .workspace-3 .pane { min-height: 0; }
 .workspace-3 .editor-pane { display: flex; flex-direction: column; overflow: hidden; }
 .workspace-3 .findings-pane { overflow-y: auto; }
+
+/* New Review tab bar (Snippet | Project) */
+.tabbar { display: flex; gap: 4px; padding: 10px 20px 0; }
+.tab { background: var(--surface-2, #161a22); border: 1px solid var(--border, #2a2f3a); border-bottom: none;
+  color: #9aa4b2; padding: 6px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; }
+.tab.active { background: var(--surface, #1f2430); color: #cdd3dc; font-weight: 600; }

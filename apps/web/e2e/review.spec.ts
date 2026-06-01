@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("submit code, watch progress, see categorized cited findings, jump to line", async ({ page }) => {
+// The simple single-snippet flow (assignment requirement): default Snippet tab + language dropdown.
+test("snippet review: pick language, watch progress, see categorized cited findings, jump to line", async ({ page }) => {
   await page.goto("/");
-
-  // Default sample (snippet.py) is already loaded and marked — just click Review.
-  await page.getByRole("button", { name: /Review .* file/ }).click();
+  await page.getByLabel("language").selectOption("python");
+  await page.getByRole("button", { name: /Review Code/ }).click();
 
   // progress stepper advances to done
   await expect(page.getByRole("status", { name: /review progress/ })).toContainText("done", { timeout: 30000 });
