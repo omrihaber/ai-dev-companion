@@ -111,16 +111,19 @@ async function walk(entry: FsEntry, base: string, out: FileInput[]): Promise<voi
   }
 }
 
-/** Dropped files/folders. Folders are recursed; a dropped .zip is expanded. */
-export async function dataTransferToInputs(dt: DataTransfer): Promise<FileInput[]> {
-  const items = Array.from(dt.items).filter((i) => i.kind === "file");
-  const entries = items
-    .map((i) => i.webkitGetAsEntry?.() as FsEntry | null)
-    .filter((e): e is FsEntry => !!e);
+// Opaque to callers — the FS entries captured synchronously in the drop handler.
+export type DroppedEntry = unknown;
 
-  if (entries.length) {
+/** webkitGetAsEntry() MUST be called synchronously inside the drop event (the item list is
+ * cleared once the handler yields), so the caller captures entries + the flat file list and
+ * passes them here for async processing. Falls back to the flat list if the entries API is absent. */
+export async function entriesToInputs(
+  entries: DroppedEntry[], fallback: File[],
+): Promise<FileInput[]> {
+  const fsEntries = entries.filter((e): e is FsEntry => !!e);
+  if (fsEntries.length) {
     const out: FileInput[] = [];
-    for (const e of entries) {
+    for (const e of fsEntries) {
       if (e.isFile && e.name.toLowerCase().endsWith(".zip")) {
         const f = await entryFile(e);
         if (f) out.push(...(await expandZip(f)));
@@ -128,7 +131,7 @@ export async function dataTransferToInputs(dt: DataTransfer): Promise<FileInput[
         await walk(e, "", out);
       }
     }
-    return out;
+    if (out.length) return out;
   }
-  return filesToInputs(dt.files); // fallback: no entries API
+  return filesToInputs(fallback); // no entries API, or entries yielded nothing
 }

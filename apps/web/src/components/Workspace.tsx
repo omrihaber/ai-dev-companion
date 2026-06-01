@@ -6,7 +6,7 @@ import type { FileCoverage, FileInput, Finding } from "../api/types";
 import { FileTree } from "./FileTree";
 import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
-import { dataTransferToInputs, filesToInputs, langOf } from "./ingest";
+import { entriesToInputs, filesToInputs, langOf } from "./ingest";
 
 const CEILING = 150;
 const SAMPLE: FileInput = {
@@ -93,11 +93,23 @@ export function Workspace({ loadId }: { loadId?: string }) {
     setActive(sorted[0].path);
   }, []);
 
-  const onDrop = useCallback(async (e: DragEvent) => {
+  const onDrop = useCallback((e: DragEvent) => {
     e.preventDefault();
     setDragActive(false);
+    // Capture entries SYNCHRONOUSLY — webkitGetAsEntry()/items are cleared once the handler yields.
+    const dt = e.dataTransfer;
+    const entries = Array.from(dt.items)
+      .filter((it) => it.kind === "file")
+      .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null));
+    const fallback = Array.from(dt.files);
     setUploadMsg("Reading dropped files…");
-    applyInputs(await dataTransferToInputs(e.dataTransfer));
+    void (async () => {
+      try {
+        applyInputs(await entriesToInputs(entries, fallback));
+      } catch (err) {
+        setUploadMsg(`Upload failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })();
   }, [applyInputs]);
 
   const review = () => start({ files, marked: [...marked] });
