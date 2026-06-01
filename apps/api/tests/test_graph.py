@@ -47,3 +47,42 @@ async def test_failing_agent_is_isolated_review_still_aggregates():
     out = await graph.ainvoke({"code": "x", "language": "python", "findings": [], "result": []})
     cats = [f.category for f in out["result"]]
     assert "quality" in cats and "security" not in cats  # failed agent contributed nothing
+
+
+class _FakeScanner:
+    name = "semgrep"
+    languages = {"python"}
+
+    def __init__(self, findings):
+        self._findings = findings
+
+    async def scan(self, code, language):
+        return self._findings
+
+
+@pytest.mark.asyncio
+async def test_scanner_finding_merges_with_agent_finding_into_one_citation():
+    from adc_api.agents import SpecialistAgent
+    from adc_api.providers import MockProvider
+
+    agent = SpecialistAgent(
+        name="security-agent", category="security", system_prompt="s",
+        provider=MockProvider(seed=[{
+            "category": "security", "severity": "high", "title": "SQL Injection",
+            "description": "d", "recommendation": "r", "start_line": 2, "end_line": 2,
+        }]),
+    )
+    scanner_finding = Finding(
+        id="sg", category="security", severity="critical", title="SQL Injection Vulnerability",
+        description="d", recommendation="r", location=Location(start_line=2, end_line=2),
+        sources=[Source(type="tool", name="semgrep", rule_id="python.sqli", url="https://x")],
+    )
+    graph = build_graph([agent], [_FakeScanner([scanner_finding])])
+    out = await graph.ainvoke(
+        {"code": "q='..'+uid", "language": "python", "findings": [], "result": []}
+    )
+
+    security = [f for f in out["result"] if f.category == "security"]
+    assert len(security) == 1  # agent + scanner merged into ONE card
+    assert {s.name for s in security[0].sources} == {"security-agent", "semgrep"}
+    assert security[0].severity == "critical"  # max severity across merged sources

@@ -8,6 +8,7 @@ from adc_core.syntax import check_syntax
 
 from adc_api.agents import SpecialistAgent, build_agents
 from adc_api.graph import build_graph
+from adc_api.scanners import Scanner, build_scanners
 from adc_api.schemas import ProgressEvent
 
 OnProgress = Callable[[ProgressEvent], None]
@@ -23,10 +24,15 @@ def _summarize(findings: list[Finding]) -> str:
 class ReviewService:
     """Runs the multi-agent LangGraph review behind a stable run() signature."""
 
-    def __init__(self, agents: list[SpecialistAgent] | None = None) -> None:
+    def __init__(
+        self,
+        agents: list[SpecialistAgent] | None = None,
+        scanners: list[Scanner] | None = None,
+    ) -> None:
         self._agents = agents if agents is not None else build_agents()
-        self._agent_names = {a.name for a in self._agents}
-        self._graph = build_graph(self._agents)
+        self._scanners = scanners if scanners is not None else build_scanners()
+        self._node_names = {a.name for a in self._agents} | {s.name for s in self._scanners}
+        self._graph = build_graph(self._agents, self._scanners)
 
     async def run(
         self, *, review_id: str, language: str, code: str, on_progress: OnProgress
@@ -43,7 +49,7 @@ class ReviewService:
             emit("validating")
             syntax = check_syntax(language, code)
 
-            sub = {name: "running" for name in self._agent_names}
+            sub = {name: "running" for name in self._node_names}
             emit("analyzing", sub_status=dict(sub))
 
             aggregated: list[Finding] = []
