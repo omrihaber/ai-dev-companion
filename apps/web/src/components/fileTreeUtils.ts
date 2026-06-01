@@ -49,6 +49,9 @@ export function togglePath(root: TreeNode, selected: Set<string>, path: string):
   const files = descendantFiles(root, path);
   const allSelected = files.every((f) => selected.has(f));
   const next = new Set(selected);
-  for (const f of files) (allSelected ? next.delete(f) : next.add(f));
+  for (const f of files) {
+    if (allSelected) next.delete(f);
+    else next.add(f);
+  }
   return next;
 }

@@ -29,12 +29,12 @@ export function Workspace({ loadId }: { loadId?: string }) {
 
   useEffect(() => { if (loadId) void load(loadId); }, [loadId, load]);
 
+  // Seed the tree marks once per review (load or completion) from its coverage, so Re-run
+  // re-marks exactly the files that were deep-reviewed.
   useEffect(() => {
     if (result?.coverage) {
       setMarked(new Set(result.coverage.files.filter((c) => c.agentReviewed).map((c) => c.path)));
     }
-    // seed once when a review's coverage becomes available (load or completion)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.id]);
 
   useEffect(() => {
