@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import pytest
 from adc_api.schemas import ProgressEvent
@@ -32,8 +33,6 @@ async def _services_available() -> bool:
 async def test_sql_repo_and_redis_bus_roundtrip_against_real_services():
     if not await _services_available():
         pytest.skip("Postgres+Redis not available (run `task up` + `task migrate`)")
-
-    import uuid
 
     from adc_api.db.models import Base
     from adc_api.events import RedisEventBus
@@ -100,3 +99,68 @@ async def test_real_scanners_flag_sql_injection(tmp_path):
     assert all_findings, "expected Semgrep and/or Bandit to report a finding"
     assert all(f.sources and f.sources[0].type == "tool" for f in all_findings)
     assert {f.sources[0].name for f in all_findings} <= {"bandit", "semgrep"}
+
+
+@pytest.mark.asyncio
+async def test_corpus_review_service_flags_sql_injection(tmp_path, monkeypatch):
+    """Multi-file corpus review through ReviewService: real Semgrep/Bandit must flag vuln.py."""
+    if not await _docker_available():
+        pytest.skip("Docker not available (run `task scanners-build` first)")
+
+    from adc_api.agents import build_agents
+    from adc_api.corpus import CorpusStore, ingest_files
+    from adc_api.providers import MockProvider
+    from adc_api.review_service import ReviewService
+    from adc_api.scanners import build_scanners
+    from adc_api.settings import settings
+
+    # Override the conftest autouse fixture that blanks settings.scanners.
+    monkeypatch.setattr(settings, "scanners", "semgrep,bandit")
+
+    vuln_code = (
+        "def get_user(uid):\n"
+        "    q = \"SELECT * FROM users WHERE id=\" + uid\n"
+        "    cursor.execute(q)\n"
+    )
+    ok_code = (
+        "def add(a: int, b: int) -> int:\n"
+        "    return a + b\n"
+    )
+
+    review_id = f"itg-{uuid.uuid4().hex[:12]}"
+    store = CorpusStore(str(tmp_path))
+    corpus = ingest_files([
+        {"path": "vuln.py", "content": vuln_code},
+        {"path": "ok.py", "content": ok_code},
+    ])
+    store.write(review_id, corpus)
+
+    svc = ReviewService(
+        agents=build_agents(provider=MockProvider(seed=[])),
+        scanners=build_scanners(),
+    )
+
+    events: list[ProgressEvent] = []
+    result = await svc.run(
+        review_id=review_id,
+        files=store.list_files(review_id),
+        marked={"vuln.py", "ok.py"},
+        on_progress=events.append,
+        work_dir=str(store.path(review_id)),
+    )
+
+    assert result.status == "done", f"review failed: {result.error}"
+    assert result.findings, "expected at least one finding from the scanner layer"
+
+    # At least one finding must be on vuln.py and carry a scanner source (bandit or semgrep).
+    scanner_names = {"bandit", "semgrep"}
+    vuln_scanner_findings = [
+        f for f in result.findings
+        if f.location.file == "vuln.py"
+        and f.sources
+        and any(s.name in scanner_names for s in f.sources)
+    ]
+    assert vuln_scanner_findings, (
+        "expected a bandit or semgrep finding on vuln.py; "
+        f"got findings: {[(f.location.file, [s.name for s in f.sources]) for f in result.findings]}"
+    )
