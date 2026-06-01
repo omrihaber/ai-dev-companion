@@ -66,6 +66,8 @@ def create_app(
             agen = await bus.subscribe(review_id)  # subscribe BEFORE snapshot (race-safe)
             snap = await repo.get(review_id)
             if snap is not None and snap.status in _TERMINAL:
+                # Already finished before the client connected: emit a full ProgressEvent (its
+                # default sub_status={} keeps the frontend stepper happy) + complete, then stop.
                 ev = ProgressEvent(review_id=review_id, stage=snap.status)
                 yield {"event": "progress",
                        "data": json.dumps(ev.model_dump(by_alias=True), default=str)}

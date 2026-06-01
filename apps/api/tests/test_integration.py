@@ -33,31 +33,39 @@ async def test_sql_repo_and_redis_bus_roundtrip_against_real_services():
     if not await _services_available():
         pytest.skip("Postgres+Redis not available (run `task up` + `task migrate`)")
 
+    import uuid
+
     from adc_api.db.models import Base
     from adc_api.events import RedisEventBus
     from adc_api.repository import SqlReviewRepository
+    from sqlalchemy import text
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+    rid = f"itg-{uuid.uuid4().hex[:12]}"  # unique per run so the test is idempotent
     eng = create_async_engine(DB_URL)
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     repo = SqlReviewRepository(async_sessionmaker(eng, expire_on_commit=False))
 
-    await repo.create("itg1", "python")
-    await repo.save_result(ReviewResult(
-        id="itg1", status="done", language="python", model="m", summary="1 security",
-        findings=[Finding(
-            id="f", category="security", severity="high", title="t", description="d",
-            recommendation="r", location=Location(start_line=1, end_line=1),
-            sources=[Source(type="agent", name="security-agent")],
-        )],
-    ))
-    got = await repo.get("itg1")
-    assert got.status == "done" and got.findings[0].category == "security"
+    try:
+        await repo.create(rid, "python")
+        await repo.save_result(ReviewResult(
+            id=rid, status="done", language="python", model="m", summary="1 security",
+            findings=[Finding(
+                id="f", category="security", severity="high", title="t", description="d",
+                recommendation="r", location=Location(start_line=1, end_line=1),
+                sources=[Source(type="agent", name="security-agent")],
+            )],
+        ))
+        got = await repo.get(rid)
+        assert got.status == "done" and got.findings[0].category == "security"
 
-    bus = RedisEventBus(REDIS_URL)
-    agen = await bus.subscribe("itg1")
-    await bus.publish("itg1", ProgressEvent(review_id="itg1", stage="done"))
-    seen = [ev.stage async for ev in agen]
-    assert seen == ["done"]
-    await eng.dispose()
+        bus = RedisEventBus(REDIS_URL)
+        agen = await bus.subscribe(rid)
+        await bus.publish(rid, ProgressEvent(review_id=rid, stage="done"))
+        seen = [ev.stage async for ev in agen]
+        assert seen == ["done"]
+    finally:
+        async with eng.begin() as conn:
+            await conn.execute(text("DELETE FROM reviews WHERE id = :id"), {"id": rid})
+        await eng.dispose()
