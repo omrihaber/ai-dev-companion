@@ -6,6 +6,7 @@ import type { FileCoverage, FileInput, Finding } from "../api/types";
 import { FileTree } from "./FileTree";
 import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
+import { ModelPicker } from "./ModelPicker";
 import { entriesToInputs, filesToInputs, langOf } from "./ingest";
 
 const CEILING = 150;
@@ -24,6 +25,7 @@ export function Workspace({ loadId }: { loadId?: string }) {
   const [showAll, setShowAll] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const [model, setModel] = useState("");
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const { start, rerun, load, progress, result, running, error, reviewId } = useReviewStream();
 
@@ -143,7 +145,7 @@ export function Workspace({ loadId }: { loadId?: string }) {
     })();
   }, [applyInputs]);
 
-  const review = () => start({ files, marked: [...marked] });
+  const review = () => start({ files, marked: [...marked], model: model || undefined });
 
   return (
     <div className="workspace-3">
@@ -170,6 +172,7 @@ export function Workspace({ loadId }: { loadId?: string }) {
               onChange={(e) => e.target.files && void filesToInputs(e.target.files).then(applyInputs)} />
           </label>
         </div>
+        <ModelPicker value={model} onChange={setModel} />
         {uploadMsg && <div className="upload-msg">{uploadMsg}</div>}
         <FileTree paths={allPaths} selected={marked} onSelectedChange={setMarked}
           active={active} onOpen={setActive} hits={hits} counts={findingCounts}
@@ -185,7 +188,7 @@ export function Workspace({ loadId }: { loadId?: string }) {
             scanners covered all {result.coverage.filesTotal}
             {reviewId && (
               <button className="rerun-btn" disabled={running}
-                onClick={() => void rerun(reviewId, [...marked])}>Re-run ▶</button>
+                onClick={() => void rerun(reviewId, [...marked], model || undefined)}>Re-run ▶</button>
             )}
           </div>
         )}

@@ -21,7 +21,7 @@ const isBinary = (s: string): boolean => BINARY_RE.test(s);
 const EXT_LANG: Record<string, string> = {
   py: "python", ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
   java: "java", go: "go", rb: "ruby", rs: "rust", c: "c", h: "c", cpp: "cpp", cc: "cpp",
-  cs: "csharp", php: "php", kt: "kotlin",
+  cs: "csharp", php: "php", kt: "kotlin", sh: "bash", bash: "bash",
 };
 export const langOf = (p: string): string =>
   EXT_LANG[p.split(".").pop()?.toLowerCase() ?? ""] ?? "plaintext";

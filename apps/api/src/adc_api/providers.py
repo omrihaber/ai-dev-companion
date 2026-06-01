@@ -79,6 +79,7 @@ class AnthropicProvider:
 
 
 def build_provider(model: str | None = None, kind: str | None = None) -> ModelProvider:
+    # Provider + key come from env; `model` is the per-review choice (falls back to ADC_MODEL).
     kind = kind or os.getenv("ADC_MODEL_PROVIDER", "ollama")
     model = model or os.getenv("ADC_MODEL", "qwen2.5-coder:7b")
     if kind == "mock":
@@ -90,10 +91,14 @@ def build_provider(model: str | None = None, kind: str | None = None) -> ModelPr
     if kind == "ollama":
         return OllamaProvider(os.getenv("ADC_OLLAMA_BASE_URL", "http://localhost:11434/v1"), model)
     if kind == "openai":
-        return OllamaProvider(
-            os.getenv("ADC_OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            model, api_key=os.environ["ADC_OPENAI_API_KEY"],
-        )
+        key = os.getenv("ADC_OPENAI_API_KEY")
+        if not key:
+            raise ValueError("OpenAI API key not set (ADC_OPENAI_API_KEY)")
+        base = os.getenv("ADC_OPENAI_BASE_URL", "https://api.openai.com/v1")
+        return OllamaProvider(base, model, api_key=key)
     if kind == "anthropic":
-        return AnthropicProvider(model, os.environ["ADC_ANTHROPIC_API_KEY"])
+        key = os.getenv("ADC_ANTHROPIC_API_KEY")
+        if not key:
+            raise ValueError("Anthropic API key not set (ADC_ANTHROPIC_API_KEY)")
+        return AnthropicProvider(model, key)
     raise ValueError(f"unknown provider: {kind}")

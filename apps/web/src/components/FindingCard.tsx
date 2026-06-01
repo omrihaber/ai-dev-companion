@@ -19,13 +19,19 @@ export function FindingCard({ finding, onJump }: { finding: Finding; onJump: (li
       <p className="reco">→ {finding.recommendation}</p>
       <div className="sources">
         sources:{" "}
-        {finding.sources.map((s) =>
-          s.url ? (
-            <a key={s.name} href={s.url} target="_blank" rel="noreferrer" className="chip">◆ {s.name}</a>
+        {finding.sources.map((s) => {
+          const isAgent = s.type === "agent";
+          const icon = isAgent ? "🤖" : "🔧";
+          const cls = `chip ${isAgent ? "chip-agent" : "chip-tool"}`;
+          const title = isAgent ? "AI agent" : "static scanner";
+          return s.url ? (
+            <a key={s.name} href={s.url} target="_blank" rel="noreferrer" className={cls} title={title}>
+              {icon} {s.name}
+            </a>
           ) : (
-            <span key={s.name} className="chip">◆ {s.name}</span>
-          )
-        )}
+            <span key={s.name} className={cls} title={title}>{icon} {s.name}</span>
+          );
+        })}
       </div>
     </div>
   );

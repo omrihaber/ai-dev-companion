@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 // The simple single-snippet flow (assignment requirement): default Snippet tab + language dropdown.
 test("snippet review: pick language, watch progress, see categorized cited findings, jump to line", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("language").selectOption("python");
+  // language picker is a custom dropdown (renders real logos); pick python explicitly
+  await page.getByRole("button", { name: "language" }).click();
+  await page.getByRole("option", { name: "python" }).click();
   await page.getByRole("button", { name: /Review Code/ }).click();
 
   // progress stepper advances to done

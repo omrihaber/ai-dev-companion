@@ -1,4 +1,4 @@
-import type { CreateReviewBody, ReviewResult } from "./types";
+import type { CreateReviewBody, ModelsResponse, ReviewResult } from "./types";
 
 export const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -12,14 +12,20 @@ export async function createReview(body: CreateReviewBody): Promise<string> {
   return (await res.json()).reviewId as string;
 }
 
-export async function rerunReview(id: string, marked: string[]): Promise<string> {
+export async function rerunReview(id: string, marked: string[], model?: string): Promise<string> {
   const res = await fetch(`${BASE}/api/reviews/${id}/rerun`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ marked }),
+    body: JSON.stringify({ marked, model }),
   });
   if (!res.ok) throw new Error(`rerun failed: ${res.status}`);
   return (await res.json()).reviewId as string;
+}
+
+export async function getModels(): Promise<ModelsResponse> {
+  const res = await fetch(`${BASE}/api/models`);
+  if (!res.ok) throw new Error(`getModels failed: ${res.status}`);
+  return (await res.json()) as ModelsResponse;
 }
 
 export async function getFile(id: string, path: string): Promise<string> {

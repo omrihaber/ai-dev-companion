@@ -18,7 +18,7 @@ async def test_inline_queue_runs_review_as_background_task(tmp_path):
         repo,
         bus,
         store,
-        agents_factory=lambda: build_agents(provider=MockProvider(seed=[{
+        agents_factory=lambda _m: build_agents(provider=MockProvider(seed=[{
             "category": "security", "severity": "high", "title": "SQLi",
             "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
         }])),

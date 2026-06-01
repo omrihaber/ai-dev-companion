@@ -48,10 +48,12 @@ class SpecialistAgent:
         ]
 
 
-def build_agents(provider: ModelProvider | None = None) -> list[SpecialistAgent]:
+def build_agents(
+    provider: ModelProvider | None = None, model: str | None = None
+) -> list[SpecialistAgent]:
     """Build the 6 specialists. If `provider` is given, all agents share it (used by
-    tests/e2e to inject a MockProvider); otherwise each agent resolves its own provider
-    from per-agent env (falling back to the global default)."""
+    tests/e2e to inject a MockProvider). Otherwise each agent resolves its own provider from
+    per-agent env, falling back to the per-review `model` choice, then the global default."""
     import os
 
     agents: list[SpecialistAgent] = []
@@ -59,9 +61,9 @@ def build_agents(provider: ModelProvider | None = None) -> list[SpecialistAgent]
         if provider is not None:
             p: ModelProvider = provider
         else:
-            model = os.getenv(f"ADC_AGENT_{env_key}_MODEL")
+            model_id = os.getenv(f"ADC_AGENT_{env_key}_MODEL") or model
             kind = os.getenv(f"ADC_AGENT_{env_key}_PROVIDER")
-            p = build_provider(model=model, kind=kind)
+            p = build_provider(model=model_id, kind=kind)
         agents.append(
             SpecialistAgent(
                 name=name,

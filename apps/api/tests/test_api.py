@@ -20,7 +20,7 @@ def _app():
         "description": "concat", "recommendation": "params", "start_line": 1, "end_line": 1,
     }])
     queue = InlineReviewQueue(
-        repo, bus, store, agents_factory=lambda: build_agents(provider=provider)
+        repo, bus, store, agents_factory=lambda _m: build_agents(provider=provider)
     )
     return create_app(repo=repo, bus=bus, queue=queue, store=store)
 
@@ -109,3 +109,14 @@ async def test_list_includes_file_count():
         listing = (await c.get("/api/reviews")).json()
         row = next(x for x in listing if x["id"] == rid)
         assert row["fileCount"] == 1
+
+
+@pytest.mark.asyncio
+async def test_models_endpoint_lists_provider_models(monkeypatch):
+    monkeypatch.setenv("ADC_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("ADC_MODEL", "mock")
+    async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
+        body = (await c.get("/api/models")).json()
+        assert body["provider"] == "mock"
+        assert body["current"] == "mock"
+        assert "mock" in body["models"]

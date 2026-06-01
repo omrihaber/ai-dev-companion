@@ -3,16 +3,23 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { useReviewStream } from "../hooks/useReviewStream";
 import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
+import { ModelPicker } from "./ModelPicker";
+import { LanguagePicker } from "./LanguagePicker";
 
 // The simple single-snippet flow (assignment requirement): pick a language, paste one file, review.
-const LANGUAGES = ["python", "typescript", "java"];
-const EXT: Record<string, string> = { python: "py", typescript: "ts", java: "java" };
+const LANGUAGES = ["python", "typescript", "javascript", "java", "go", "rust", "bash"];
+const EXT: Record<string, string> = {
+  python: "py", typescript: "ts", javascript: "js", java: "java", go: "go", rust: "rs", bash: "sh",
+};
+// Monaco's language id for bash is "shell"; the rest match our ids.
+const monacoLang = (l: string) => (l === "bash" ? "shell" : l);
 const SAMPLE =
   'def get_user_data(user_id):\n    query = "SELECT * FROM users WHERE id = " + str(user_id)\n' +
   "    cursor.execute(query)\n    return cursor.fetchall()\n";
 
 export function SnippetReview() {
   const [language, setLanguage] = useState("python");
+  const [model, setModel] = useState("");
   const [code, setCode] = useState(SAMPLE);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const { start, progress, result, running, error } = useReviewStream();
@@ -28,18 +35,17 @@ export function SnippetReview() {
 
   const review = () => {
     const path = `snippet.${EXT[language] ?? "txt"}`;
-    start({ files: [{ path, content: code, language }], marked: [path] });
+    start({ files: [{ path, content: code, language }], marked: [path], model: model || undefined });
   };
 
   return (
     <div className="workspace">
       <section className="pane editor-pane">
         <div className="controls">
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="language">
-            {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
+          <LanguagePicker value={language} options={LANGUAGES} onChange={setLanguage} />
+          <ModelPicker value={model} onChange={setModel} />
         </div>
-        <Editor height="60vh" language={language} theme="vs-dark" value={code} onMount={onMount}
+        <Editor height="60vh" language={monacoLang(language)} theme="vs-dark" value={code} onMount={onMount}
           onChange={(v) => setCode(v ?? "")}
           options={{ minimap: { enabled: false }, fontSize: 13, padding: { top: 10 } }} />
         <button className="review-btn" disabled={running} onClick={review}>

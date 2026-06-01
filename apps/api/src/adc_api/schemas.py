@@ -20,6 +20,7 @@ class ReviewRequest(_Camel):
     code: str | None = None            # legacy single-snippet
     files: list[FileInput] = Field(default_factory=list)
     marked: list[str] = Field(default_factory=list)
+    model: str | None = None           # per-review model choice (provider/key come from env)
 
 class RawFinding(_Camel):
     """Shape the LLM returns; ReviewService converts these into Findings."""
