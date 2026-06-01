@@ -22,6 +22,12 @@ smaller engineering/CI debt not tied to a whole increment.
 - **Job store eviction.** The in-memory `JobManager` (`_results`, `_queues`) never evicts; fine for
   Inc 1, replaced by Redis/arq in Inc 2 (see spec). Until then, add TTL/cap if running long-lived.
 - **Configurable CORS.** `allow_origins=["*"]` is local-dev only; make it env-driven before deploy.
+- **Work-dir retention / disk growth.** Per-review corpus dirs under `ADC_WORK_ROOT` are retained
+  to power History + Re-run; there is no TTL/cleanup job yet (disk grows unbounded). Acceptable for
+  local/demo use; add a sweep job before any shared or production deployment.
+- **Scanner finding categories.** Scanner findings (Semgrep/Bandit) are categorised as `security` by
+  default; rule-tag-based category refinement (mapping rule tags → `performance`, `logic`, etc.) is
+  deferred.
 
 ## Frontend
 - **Adopt shadcn/ui + Tailwind.** The UI currently uses a hand-rolled dark theme (CSS variables in
