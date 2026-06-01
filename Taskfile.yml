@@ -10,3 +10,4 @@ tasks:
   install: { desc: "Install all Python workspace members (editable)", cmds: ["uv sync --all-packages"] }
   test:py: { desc: "Run backend tests", cmds: ["uv sync --all-packages", "uv run pytest packages/core apps/api"] }
   test:web: { desc: "Run frontend unit tests", dir: apps/web, cmds: ["pnpm test"] }
+  scanners-build: { desc: "Pull/build scanner images (semgrep + bandit)", cmds: ["docker pull semgrep/semgrep:latest", "docker build -t adc-bandit:latest -f infra/docker/bandit.Dockerfile infra/docker"] }
