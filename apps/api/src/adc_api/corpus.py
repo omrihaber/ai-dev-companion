@@ -45,7 +45,7 @@ def _normalize(
     out: list[CorpusFile] = []
     total = 0
     for path, content in raw:
-        path = path.lstrip("./").replace("\\", "/")
+        path = path.removeprefix("./").replace("\\", "/")
         if not path or _ignored(path, ignore_globs):
             continue
         size = len(content.encode("utf-8", "surrogatepass"))

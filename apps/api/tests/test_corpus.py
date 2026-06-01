@@ -55,3 +55,12 @@ def test_ingest_zip_rejects_path_traversal():
     data = _zip_bytes({"../escape.py": "x=1"})
     with pytest.raises(IngestError):
         ingest_zip(data)
+
+
+def test_ingest_files_drops_dotgit_and_strips_dot_slash_prefix():
+    out = ingest_files([
+        {"path": ".git/config", "content": "secret"},
+        {"path": "./app/main.py", "content": "x=1\n"},
+    ])
+    paths = [f.path for f in out]
+    assert paths == ["app/main.py"]           # .git/* ignored; leading ./ stripped exactly
