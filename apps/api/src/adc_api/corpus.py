@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import fnmatch
 import io
+import shutil
 import zipfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from adc_api.settings import settings
 
@@ -135,3 +137,49 @@ def ingest_zip(
                 continue  # binary / unreadable: skip
             raw.append((name, content))
     return _normalize(raw, **_caps(max_files, max_total_bytes, max_file_bytes, ignore_globs))
+
+
+class CorpusStore:
+    """Disk-backed per-review corpus. Files live under <root>/<review_id>/<path>."""
+
+    def __init__(self, root: str) -> None:
+        self._root = Path(root)
+
+    def path(self, review_id: str) -> Path:
+        return self._root / review_id
+
+    def write(self, review_id: str, files: list[CorpusFile]) -> Path:
+        base = self.path(review_id)
+        base.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            dest = (base / f.path).resolve()
+            if base.resolve() not in dest.parents and dest != base.resolve():
+                raise IngestError(f"path escapes work dir: {f.path!r}")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(f.content, encoding="utf-8")
+        return base
+
+    def list_files(self, review_id: str) -> list[CorpusFile]:
+        base = self.path(review_id).resolve()
+        out: list[CorpusFile] = []
+        if not base.exists():
+            return out
+        for p in sorted(base.rglob("*")):
+            if p.is_file():
+                rel = p.relative_to(base).as_posix()
+                out.append(CorpusFile(rel, p.read_text("utf-8", "replace"), _language_for(rel)))
+        return out
+
+    def read_file(self, review_id: str, rel_path: str) -> str:
+        base = self.path(review_id).resolve()
+        target = (base / rel_path).resolve()
+        if base != target and base not in target.parents:
+            raise IngestError(f"path escapes work dir: {rel_path!r}")
+        if not target.is_file():
+            raise IngestError(f"file not found: {rel_path!r}")
+        return target.read_text("utf-8", "replace")
+
+    def copy(self, src_review_id: str, dst_review_id: str) -> Path:
+        dst = self.path(dst_review_id)
+        shutil.copytree(self.path(src_review_id), dst, dirs_exist_ok=True)
+        return dst

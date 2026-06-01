@@ -87,3 +87,38 @@ def test_ingest_files_rejects_over_file_count_short_circuits():
     files = [{"path": f"f{i}.py", "content": "x=1"} for i in range(5)]
     with pytest.raises(IngestError):
         ingest_files(files, max_files=2)
+
+
+def test_corpus_store_write_list_read_roundtrip(tmp_path):
+    from adc_api.corpus import CorpusStore
+
+    store = CorpusStore(str(tmp_path))
+    files = ingest_files([
+        {"path": "app/main.py", "content": "print(1)\n"},
+        {"path": "app/util.py", "content": "x = 2\n"},
+    ])
+    work = store.write("rev1", files)
+    assert (work / "app/main.py").read_text() == "print(1)\n"
+
+    listed = {f.path: f for f in store.list_files("rev1")}
+    assert set(listed) == {"app/main.py", "app/util.py"}
+    assert listed["app/main.py"].language == "python"
+    assert store.read_file("rev1", "app/util.py") == "x = 2\n"
+
+
+def test_corpus_store_read_file_blocks_traversal(tmp_path):
+    from adc_api.corpus import CorpusStore
+
+    store = CorpusStore(str(tmp_path))
+    store.write("rev1", ingest_files([{"path": "a.py", "content": "x=1"}]))
+    with pytest.raises(IngestError):
+        store.read_file("rev1", "../../etc/passwd")
+
+
+def test_corpus_store_copy_for_rerun(tmp_path):
+    from adc_api.corpus import CorpusStore
+
+    store = CorpusStore(str(tmp_path))
+    store.write("rev1", ingest_files([{"path": "a.py", "content": "x=1"}]))
+    store.copy("rev1", "rev2")
+    assert store.read_file("rev2", "a.py") == "x=1"
