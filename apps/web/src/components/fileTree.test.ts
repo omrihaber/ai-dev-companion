@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, togglePath, descendantFiles } from "./fileTree";
+import { buildTree, togglePath, descendantFiles } from "./fileTreeUtils";
 
 const PATHS = ["app/auth.py", "app/db.py", "tests/test_a.py"];
 

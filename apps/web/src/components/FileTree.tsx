@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { buildTree, descendantFiles, togglePath, type TreeNode } from "./fileTree";
+import { buildTree, descendantFiles, togglePath, type TreeNode } from "./fileTreeUtils";
 import type { FileCoverage } from "../api/types";
 
 interface Props {
