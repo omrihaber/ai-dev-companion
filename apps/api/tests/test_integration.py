@@ -69,3 +69,29 @@ async def test_sql_repo_and_redis_bus_roundtrip_against_real_services():
         async with eng.begin() as conn:
             await conn.execute(text("DELETE FROM reviews WHERE id = :id"), {"id": rid})
         await eng.dispose()
+
+
+async def _docker_available() -> bool:
+    from adc_api.scanners.docker_runner import docker_available
+    return await docker_available()
+
+
+@pytest.mark.asyncio
+async def test_real_scanners_flag_sql_injection():
+    if not await _docker_available():
+        pytest.skip("Docker not available (run `task scanners-build` first)")
+
+    from adc_api.scanners.bandit import BanditScanner
+    from adc_api.scanners.semgrep import SemgrepScanner
+
+    code = (
+        "def get_user(uid):\n"
+        "    q = \"SELECT * FROM users WHERE id = \" + str(uid)\n"
+        "    cursor.execute(q)\n"
+    )
+    bandit = await BanditScanner().scan(code, "python")
+    semgrep = await SemgrepScanner().scan(code, "python")
+    all_findings = bandit + semgrep
+    assert all_findings, "expected Semgrep and/or Bandit to report a finding"
+    assert all(f.sources and f.sources[0].type == "tool" for f in all_findings)
+    assert {f.sources[0].name for f in all_findings} <= {"bandit", "semgrep"}

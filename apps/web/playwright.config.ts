@@ -5,7 +5,7 @@ export default defineConfig({
   use: { baseURL: "http://localhost:5173" },
   webServer: [
     {
-      command: "ADC_MODEL_PROVIDER=mock ADC_BACKEND=memory uv run --project ../../apps/api uvicorn adc_api.main:app --port 8001",
+      command: "ADC_MODEL_PROVIDER=mock ADC_BACKEND=memory ADC_SCANNERS= uv run --project ../../apps/api uvicorn adc_api.main:app --port 8001",
       url: "http://localhost:8001/api/health",
       reuseExistingServer: !process.env.CI,
     },

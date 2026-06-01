@@ -10,7 +10,7 @@ Open-source and local-first — runs with **zero API keys** using a local model 
 
 ## Architecture
 - **packages/core** — Findings schema, sanitization, tree-sitter syntax checks.
-- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic). Reviews are persisted in **Postgres** and run by an **arq/Redis worker** (or in-process via `ADC_BACKEND=memory`).
+- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic). Reviews are persisted in **Postgres** and run by an **arq/Redis worker** (or in-process via `ADC_BACKEND=memory`) + external scanners (Semgrep/Bandit) whose SARIF findings merge into the same cited cards.
 - **apps/web** — React + Monaco workspace (side-by-side editor/findings) + History + Settings.
 
 ## How it works
@@ -53,6 +53,14 @@ flowchart TB
 
 > The dashed `enriching` stage is reserved in the status contract + UI today; it activates when the
 > scanner fan-out lands in Inc 5. Multi-agent fan-out (parallel specialist agents) arrives in Inc 2.
+
+## Scanners (Inc 5)
+Semgrep + Bandit run as Docker containers in parallel with the agents; their SARIF findings merge
+into the same cards via the aggregator, so one issue cites the agent **and** the scanners (each chip
+links to the rule). Bandit runs fully offline + sandboxed (`--network=none`, code mounted read-only);
+Semgrep fetches its rule registry (network-enabled; the code is still mounted read-only and never
+executed). Build the images once with `task scanners-build`. Configure via `ADC_SCANNERS` (default
+`semgrep,bandit`; empty disables). Requires Docker; without it (or `ADC_SCANNERS=`) reviews run agent-only.
 
 ## Quick start
 ```bash
