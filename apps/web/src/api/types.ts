@@ -12,7 +12,14 @@ export interface Finding {
 export interface ReviewResult {
   id: string; status: ReviewStatus; language: string; model: string;
   findings: Finding[]; summary: string; createdAt: string; durationMs?: number; error?: string;
+  coverage?: Coverage; parentReviewId?: string; fileCount?: number;
 }
 export interface ProgressEvent {
   reviewId: string; stage: ReviewStatus; percent?: number; subStatus: Record<string, string>; message?: string;
 }
+
+export type CoverageReason = "marked" | "scanner-hit" | "fallback" | "not-flagged" | "over-cap";
+export interface FileCoverage { path: string; agentReviewed: boolean; reason: CoverageReason; }
+export interface Coverage { filesTotal: number; filesAgentReviewed: number; files: FileCoverage[]; }
+export interface FileInput { path: string; content: string; language?: string; }
+export interface CreateReviewBody { files: FileInput[]; marked: string[]; }

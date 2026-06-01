@@ -14,7 +14,7 @@ export function useReviewStream() {
   const start = useCallback(async (language: string, code: string) => {
     setProgress(null); setResult(null); setError(null); setRunning(true);
     try {
-      const id = await createReview(language, code);
+      const id = await createReview({ files: [{ path: `snippet.${language === 'typescript' ? 'ts' : language === 'java' ? 'java' : 'py'}`, content: code, language }], marked: [] });
       const es = new EventSource(eventsUrl(id));
       esRef.current = es;
       let finished = false;
