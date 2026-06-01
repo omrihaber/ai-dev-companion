@@ -70,7 +70,8 @@ them to `build_graph`. Per-source SSE sub-status now includes `semgrep`/`bandit`
 ### 2.4 SARIF → Findings mapping
 `sarif_to_findings(sarif: dict, scanner_name: str) -> list[Finding]` over `runs[].results[]`:
 - **severity**: from `result.level` (`error→high`, `warning→medium`, `note/none→low`); if the rule carries a
-  `security-severity` property (0–10), map ≥7→`critical`, ≥4→`high`, else `medium`.
+  `security-severity` property (0–10), map it (GitHub SARIF convention) ≥9→`critical`, ≥7→`high`,
+  ≥4→`medium`, else `low`.
 - **location**: first `physicalLocation.region` → `Location(start_line, end_line, start_col?, end_col?)`.
 - **title**: rule `shortDescription` or the result `message.text` (first line).
 - **description**: `message.text`; **recommendation**: rule `help.text`/`fullDescription` if present, else a
