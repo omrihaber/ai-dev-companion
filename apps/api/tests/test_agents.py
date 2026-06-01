@@ -27,3 +27,13 @@ def test_build_agents_returns_six_specialists():
         "security-agent", "performance-agent", "logic-agent",
         "quality-agent", "docs-agent", "tests-agent",
     }
+
+
+@pytest.mark.asyncio
+async def test_agent_sets_location_file_when_given():
+    agents = build_agents(provider=MockProvider(seed=[{
+        "category": "security", "severity": "high", "title": "SQLi",
+        "description": "d", "recommendation": "r", "start_line": 1, "end_line": 1,
+    }]))
+    findings = await agents[0].analyze("x = 1\n", "python", file="app/auth.py")
+    assert findings[0].location.file == "app/auth.py"

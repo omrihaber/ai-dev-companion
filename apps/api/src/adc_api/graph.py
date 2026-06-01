@@ -14,6 +14,7 @@ class ReviewState(TypedDict):
     code: str
     language: str
     work_dir: str  # corpus directory; consumed by scanner nodes via scan_path
+    file: str | None  # path of the file being reviewed; passed to specialists for attribution
     findings: Annotated[list[Finding], operator.add]  # concurrent specialist/scanner appends
     failures: Annotated[list[str], operator.add]      # node names that errored (for surfacing)
     result: list[Finding]                             # aggregator output (last-write-wins)
@@ -22,7 +23,7 @@ class ReviewState(TypedDict):
 def _specialist_node(agent: SpecialistAgent):
     async def node(state: ReviewState) -> dict:
         try:
-            found = await agent.analyze(state["code"], state["language"])
+            found = await agent.analyze(state["code"], state["language"], state.get("file"))
         except Exception:  # noqa: BLE001 — isolate one agent's failure from the whole review
             return {"findings": [], "failures": [agent.name]}
         return {"findings": found}
