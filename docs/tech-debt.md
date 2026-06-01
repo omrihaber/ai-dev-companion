@@ -19,8 +19,9 @@ smaller engineering/CI debt not tied to a whole increment.
 - **Typed FastAPI `response_model`s.** Routes return plain `dict`s today; adding `response_model=`
   would enrich the OpenAPI schema and let `pnpm --filter web gen:types` auto-generate the TS types
   (replacing the hand-maintained `apps/web/src/api/types.ts` mirror).
-- **Job store eviction.** The in-memory `JobManager` (`_results`, `_queues`) never evicts; fine for
-  Inc 1, replaced by Redis/arq in Inc 2 (see spec). Until then, add TTL/cap if running long-lived.
+- **In-memory backend eviction.** `InMemoryReviewRepository` (used by `ADC_BACKEND=memory`) never
+  evicts — fine for the quick-demo/e2e mode; the durable path is Postgres. Add a TTL/cap only if
+  someone runs the memory backend long-lived.
 - **Configurable CORS.** `allow_origins=["*"]` is local-dev only; make it env-driven before deploy.
 - **Work-dir retention / disk growth.** Per-review corpus dirs under `ADC_WORK_ROOT` are retained
   to power History + Re-run; there is no TTL/cleanup job yet (disk grows unbounded). Acceptable for
@@ -39,14 +40,12 @@ smaller engineering/CI debt not tied to a whole increment.
   review would split events. Acceptable for Inc 1; revisit if multi-tab/shared sessions matter.
 
 ## Product / UX backlog
-- **History: open a past review (restore state).** Today the History page is a read-only list.
-  Clicking a row should reopen that review — load its findings into the right pane and the original
-  code into the editor — so you can revisit/inspect what was scanned. Needs the API to return the
-  stored code (or a code reference) alongside the `ReviewResult`.
-- **Settings: make it editable, not just informational.** The Settings page currently only displays
-  the env-based config. It should let the user change the provider/model (and enter a BYO key) from
-  the UI and have it take effect (persist per-user once auth lands in Inc 6; until then, a
-  runtime-overridable server setting + restart-free provider rebuild).
+- ~~**History: open a past review.**~~ **Done** — clicking a History row reloads the full review
+  (findings + coverage) and lets you browse its files (served from the persisted corpus via
+  `GET /api/reviews/{id}/file`).
+- ~~**Settings: make it editable.**~~ **Superseded** — instead of an editable settings page, the
+  provider + key stay env-configured and the **model is chosen per-review** via a dropdown
+  (`GET /api/models`). A full per-user settings store is deferred to auth (Inc 6).
 - **Navbar: surface upcoming entry points ("coming soon").** Add nav items for the planned
   integrations — **CI / GitHub** (webhook + PR triggers, Inc 4), plus repo/branch/commit ingestion —
   shown as disabled "coming soon" links so the roadmap is visible in-product.
