@@ -30,8 +30,17 @@ def _physical(result: dict) -> tuple[str | None, dict] | None:
         phys = loc.get("physicalLocation", {})
         region = phys.get("region")
         if region and region.get("startLine"):
-            uri = (phys.get("artifactLocation", {}).get("uri") or "").lstrip("./") or None
-            return uri, region
+            # Scanners run in a container with the corpus mounted at /src; their SARIF URIs are
+            # mount-prefixed (bandit: file:///src/x.py, semgrep: src/x.py). Strip back to the
+            # corpus-relative path so findings line up with agent findings + the file tree.
+            uri = phys.get("artifactLocation", {}).get("uri") or ""
+            uri = uri.removeprefix("file://")
+            if uri.startswith("/src/"):
+                uri = uri[len("/src/"):]
+            elif uri.startswith("src/"):
+                uri = uri[len("src/"):]
+            uri = uri.removeprefix("./").lstrip("/")
+            return (uri or None), region
     return None
 
 

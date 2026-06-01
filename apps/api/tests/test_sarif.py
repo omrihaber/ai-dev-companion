@@ -91,3 +91,52 @@ def test_strips_leading_dot_slash_from_file():
         }]
     }
     assert sarif_to_findings(sarif, "bandit")[0].location.file == "app/db.py"
+
+
+def test_strips_bandit_file_uri_and_src_mount():
+    sarif = {
+        "runs": [{
+            "tool": {"driver": {"rules": []}},
+            "results": [{
+                "ruleId": "B608", "level": "warning", "message": {"text": "sqli"},
+                "locations": [{"physicalLocation": {
+                    "artifactLocation": {"uri": "file:///src/vuln.py"},
+                    "region": {"startLine": 2, "endLine": 2},
+                }}],
+            }],
+        }]
+    }
+    assert sarif_to_findings(sarif, "bandit")[0].location.file == "vuln.py"
+
+
+def test_strips_semgrep_src_mount_prefix():
+    sarif = {
+        "runs": [{
+            "tool": {"driver": {"rules": []}},
+            "results": [{
+                "ruleId": "x", "level": "error", "message": {"text": "sqli"},
+                "locations": [{"physicalLocation": {
+                    "artifactLocation": {"uri": "src/vuln.py"},
+                    "region": {"startLine": 2, "endLine": 2},
+                }}],
+            }],
+        }]
+    }
+    assert sarif_to_findings(sarif, "semgrep")[0].location.file == "vuln.py"
+
+
+def test_preserves_legit_src_subdir_after_mount_strip():
+    # A real file under a user 'src/' dir: bandit reports file:///src/src/app.py -> src/app.py
+    sarif = {
+        "runs": [{
+            "tool": {"driver": {"rules": []}},
+            "results": [{
+                "ruleId": "x", "level": "error", "message": {"text": "m"},
+                "locations": [{"physicalLocation": {
+                    "artifactLocation": {"uri": "file:///src/src/app.py"},
+                    "region": {"startLine": 1, "endLine": 1},
+                }}],
+            }],
+        }]
+    }
+    assert sarif_to_findings(sarif, "bandit")[0].location.file == "src/app.py"
