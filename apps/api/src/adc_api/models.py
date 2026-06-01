@@ -37,7 +37,13 @@ async def available() -> dict:
                 key = "ollama"
             ids = await _fetch_openai_compatible(base, key)
             if kind == "openai":  # keep chat-capable ids only
-                ids = [i for i in ids if i.startswith(("gpt", "o1", "o3", "o4", "chatgpt"))]
+                _SKIP = ("instruct", "image", "audio", "realtime", "embedding", "tts",
+                         "whisper", "moderation", "transcribe", "search", "davinci", "babbage")
+                ids = [
+                    i for i in ids
+                    if i.startswith(("gpt", "o1", "o3", "o4", "chatgpt"))
+                    and not any(s in i for s in _SKIP)
+                ]
             if ids:
                 models = sorted(set(ids))
         except Exception:  # noqa: BLE001 — network/key issues fall back to the curated list
