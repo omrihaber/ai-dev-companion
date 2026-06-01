@@ -130,6 +130,17 @@ is the iterative cycle: scanners flag breadth → user sees skipped files → ma
 
 ---
 
+## 4b. History (reconstruct a past review)
+
+The persistence above also powers **History** with a small delta — the list endpoint (`GET /api/reviews`)
+and report persistence already exist (Inc 3); the per-review work dir + `file?path=` endpoint add the
+missing half (the files). Selecting a past review reconstructs the **full three-pane view** — its report
+(findings + coverage) **and** its browsable code — in **read-only** mode, with **Re-run** available
+(re-using the same work dir + new marks). Today's read-only history *table* becomes a clickable list that
+loads the selected review into the main view. This requires **work-dir retention** (see §5.3).
+
+---
+
 ## 5. Data model & API
 
 ### 5.1 Schema (`adc_core.models`, camelCase via existing alias generator)
@@ -150,9 +161,13 @@ is the iterative cycle: scanners flag breadth → user sees skipped files → ma
 - `GET /api/reviews/{id}/file?path=…` — returns one file's content (from the work dir) for the editor;
   rejects paths escaping the work dir.
 - `GET /api/reviews/{id}` and the SSE stream — unchanged shape aside from the new `coverage` field.
+- `GET /api/reviews` (exists) — the history list; items gain a `fileCount` for the table. Clicking a row
+  loads that review into the main three-pane view (report from `{id}`, files from `{id}/file?path=`).
 
 ### 5.3 Persistence
-- Corpus files persist on disk under the per-review work dir (serves file content **and** powers re-runs).
+- Corpus files persist on disk under the per-review work dir (serves file content, powers re-runs **and
+  History**). **Work dirs are retained** (not auto-deleted) so a past review reloads its files; a TTL /
+  cleanup job is deferred (see §11).
 - Findings + coverage persist via the existing `ReviewRepository` (SQL/JSONB or in-memory).
 
 ### 5.4 Configuration (new env)
@@ -184,6 +199,8 @@ Stages unchanged: `queued → validating → analyzing → finalizing → done |
 - **Top — Coverage banner**: "agents reviewed N / M · scanners covered all M" + a **Re-run** button
   (enabled when the marked set changed).
 - A **cost/time warning** appears when the marked set is large (approaching the ceiling).
+- **History**: the existing read-only table becomes a clickable list; selecting a row loads that review
+  into the same three-pane view (read-only, Re-run enabled) — see §4b.
 
 ---
 
@@ -211,7 +228,8 @@ Stages unchanged: `queued → validating → analyzing → finalizing → done |
 - **Gated integration (Docker):** real Semgrep/Bandit over a small multi-file repo → scanner findings land
   on the right files; self-skips if `docker version` fails.
 - **Frontend:** tree tri-state / select-all / dir-toggle (vitest); Playwright e2e — upload a 2-file folder,
-  run, see findings grouped by file, mark a skipped file, re-run, see it become reviewed.
+  run, see findings grouped by file, mark a skipped file, re-run, see it become reviewed; **History** — a
+  past review row opens into the three-pane view with its files browsable + report shown.
 - Determinism rule holds (assert schema / sources / coverage, not exact model wording).
 
 ---
@@ -230,8 +248,8 @@ Stages unchanged: `queued → validating → analyzing → finalizing → done |
 
 - Large repos get **whole-repo scanner coverage** but only **bounded agent depth** (by design, until
   Piece B's retrieval enables smarter, broader agent selection). Coverage is reported honestly.
-- The work dir persists per review; cleanup/retention policy is left simple (best-effort; a TTL/cleanup
-  job is deferred).
+- Work dirs are **retained** per review to power History + Re-run; disk grows unbounded until a TTL /
+  cleanup job (deferred) is added. Acceptable for this increment / local deployment.
 - Client-side zip unzip (browser) is bounded by browser memory; very large zips should use the server
   `POST /api/reviews/zip` endpoint.
 - Per-file agent fan-out cost scales with the marked set; the cap/ceiling + cost warning bound it.
