@@ -65,6 +65,14 @@ export function Workspace({ loadId }: { loadId?: string }) {
 
   const allPaths = result?.coverage?.files.map((c) => c.path) ?? files.map((f) => f.path);
   const findingsForActive: Finding[] = (result?.findings ?? []).filter((f) => f.location.file === active);
+  const findingCounts = useMemo<Record<string, number>>(() => {
+    const m: Record<string, number> = {};
+    (result?.findings ?? []).forEach((f) => {
+      const k = f.location.file;
+      if (k) m[k] = (m[k] ?? 0) + 1;
+    });
+    return m;
+  }, [result]);
   const grouped = useMemo<Record<string, Finding[]>>(() => {
     const m: Record<string, Finding[]> = {};
     (result?.findings ?? []).forEach((f) => {
@@ -74,7 +82,30 @@ export function Workspace({ loadId }: { loadId?: string }) {
     return m;
   }, [result]);
 
-  const onMount: OnMount = (editor) => { editorRef.current = editor; };
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const onMount: OnMount = (editor, monaco) => { editorRef.current = editor; monacoRef.current = monaco; };
+
+  // Render the active file's findings as inline editor markers (squiggles), so clicking a file
+  // surfaces its issues right on the code as well as in the findings panel.
+  useEffect(() => {
+    const ed = editorRef.current;
+    const monaco = monacoRef.current;
+    const model = ed?.getModel();
+    if (!ed || !monaco || !model) return;
+    const sev = (s: string) =>
+      s === "critical" || s === "high" ? monaco.MarkerSeverity.Error
+      : s === "medium" ? monaco.MarkerSeverity.Warning
+      : monaco.MarkerSeverity.Info;
+    monaco.editor.setModelMarkers(model, "adc", findingsForActive.map((f) => ({
+      startLineNumber: f.location.startLine,
+      endLineNumber: f.location.endLine,
+      startColumn: f.location.startCol ?? 1,
+      endColumn: f.location.endCol ?? 200,
+      message: `${f.title} — ${f.sources.map((s) => s.name).join(", ")}`,
+      severity: sev(f.severity),
+    })));
+  }, [findingsForActive, active, editorValue]);
+
   const jumpTo = (line: number) => {
     const ed = editorRef.current;
     if (!ed) return;
@@ -141,7 +172,8 @@ export function Workspace({ loadId }: { loadId?: string }) {
         </div>
         {uploadMsg && <div className="upload-msg">{uploadMsg}</div>}
         <FileTree paths={allPaths} selected={marked} onSelectedChange={setMarked}
-          active={active} onOpen={setActive} hits={hits} coverage={coverageByPath} />
+          active={active} onOpen={setActive} hits={hits} counts={findingCounts}
+          coverage={coverageByPath} />
         <div className="drop-hint">Drag &amp; drop a folder or files here</div>
         {dragActive && <div className="drop-overlay">Drop to load files</div>}
       </aside>
@@ -176,6 +208,10 @@ export function Workspace({ loadId }: { loadId?: string }) {
       <section className="pane findings-pane">
         <ProgressStepper progress={progress} />
         {error && <div className="error" role="alert">{error}</div>}
+        {!result && !running && (
+          <p className="hint">Select files in the tree and run a review — findings for the file you
+            click will appear here.</p>
+        )}
         {result && (
           <>
             <div className="summary">{result.summary}</div>
@@ -183,6 +219,11 @@ export function Workspace({ loadId }: { loadId?: string }) {
               <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
               Show all files
             </label>
+            {!showAll && (
+              <div className="findings-head">
+                Findings in <code>{active}</code> · {findingsForActive.length}
+              </div>
+            )}
             {showAll
               ? Object.entries(grouped).map(([file, fs]) => (
                   <div key={file}>

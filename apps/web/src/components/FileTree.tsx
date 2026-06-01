@@ -9,6 +9,7 @@ interface Props {
   active: string | null;
   onOpen: (path: string) => void;
   hits?: Record<string, number>;
+  counts?: Record<string, number>; // total findings per file (badge so you can see what to click)
   coverage?: Record<string, FileCoverage>;
 }
 
@@ -38,6 +39,7 @@ export function FileTree(props: Props) {
     const cov = props.coverage?.[node.path];
     const skipped = cov && !cov.agentReviewed;
     const isCollapsed = collapsed.has(node.path);
+    const findingCount = props.counts ? files.reduce((n, f) => n + (props.counts?.[f] ?? 0), 0) : 0;
 
     return (
       <div key={node.path || "root"}>
@@ -64,6 +66,7 @@ export function FileTree(props: Props) {
               <span className="nm">{node.name}</span>
             </button>
           )}
+          {findingCount > 0 ? <span className="count-badge" title="findings">{findingCount}</span> : null}
           {props.hits?.[node.path] ? <span className="hit-badge" title="scanner findings">●{props.hits[node.path]}</span> : null}
           {skipped ? <span className="skip-tag">skipped</span> : null}
         </div>
