@@ -1,7 +1,7 @@
 export type Category = "security" | "performance" | "logic" | "quality" | "docs" | "tests" | "syntax";
 export type Severity = "info" | "low" | "medium" | "high" | "critical";
 export type ReviewStatus =
-  | "queued" | "validating" | "analyzing" | "enriching" | "finalizing" | "done" | "failed";
+  | "queued" | "validating" | "analyzing" | "finalizing" | "done" | "failed";
 
 export interface Location { file?: string; startLine: number; endLine: number; startCol?: number; endCol?: number; }
 export interface Source { type: "agent" | "tool"; name: string; confidence?: number; ruleId?: string; url?: string; }

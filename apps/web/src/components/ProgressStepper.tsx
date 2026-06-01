@@ -1,6 +1,6 @@
 import type { ProgressEvent } from "../api/types";
 
-const STAGES = ["validating", "analyzing", "enriching", "finalizing", "done"] as const;
+const STAGES = ["validating", "analyzing", "finalizing", "done"] as const;
 
 export function ProgressStepper({ progress }: { progress: ProgressEvent | null }) {
   const current = progress?.stage ?? "queued";

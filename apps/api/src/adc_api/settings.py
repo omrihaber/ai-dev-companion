@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     backend: str = "infra"
     database_url: str = "postgresql+asyncpg://adc:adc@localhost:5432/adc"
     redis_url: str = "redis://localhost:6379"
+    scanners: str = "semgrep,bandit"   # comma list; empty disables the scanner layer
+    scanner_timeout: int = 60          # seconds per container run
     max_code_bytes: int = 100_000
     max_code_lines: int = 2_000
 

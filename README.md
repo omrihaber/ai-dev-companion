@@ -10,49 +10,53 @@ Open-source and local-first — runs with **zero API keys** using a local model 
 
 ## Architecture
 - **packages/core** — Findings schema, sanitization, tree-sitter syntax checks.
-- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic). Reviews are persisted in **Postgres** and run by an **arq/Redis worker** (or in-process via `ADC_BACKEND=memory`).
+- **apps/api** — FastAPI job API + **LangGraph multi-agent engine** (6 specialists → aggregator). `POST /api/reviews` -> SSE progress -> `ReviewResult`. Pluggable `ModelProvider` (Ollama/OpenAI/Anthropic). Reviews are persisted in **Postgres** and run by an **arq/Redis worker** (or in-process via `ADC_BACKEND=memory`) + external scanners (Semgrep/Bandit) whose SARIF findings merge into the same cited cards.
 - **apps/web** — React + Monaco workspace (side-by-side editor/findings) + History + Settings.
 
 ## How it works
 
-A review is an **async job**. The `ReviewService` pipeline runs each **source**, then an
-**aggregator** dedupes/merges their results by `location + category` — so a single finding can
-**cite multiple sources** (e.g. our agent *and* Semgrep). Every finding carries `sources[]`, and the
-UI shows those as clickable citation chips.
+A review is an **async job**: the API persists it (Postgres), enqueues it (arq/Redis), and a **worker**
+runs the `ReviewService` LangGraph. Every **source** — tree-sitter, the 6 LLM agents, and the SARIF
+scanners — runs concurrently, then an **aggregator** dedupes/merges by `location + similar title`
+(across categories) and **unions `sources[]`** — so one issue can **cite multiple sources** (e.g. the
+`security-agent` *and* `semgrep` *and* `bandit`). The UI shows those as clickable citation chips.
 
 ```mermaid
 flowchart TB
   U["User submits code<br/>(Monaco editor)"] --> POST["POST /api/reviews"]
-  POST --> JM["JobManager<br/>async job + per-review event bus"]
-  JM --> RS["ReviewService pipeline"]
+  POST --> Q["queue (arq/Redis) → worker<br/>state persisted in Postgres"]
+  Q --> RS["ReviewService — LangGraph fan-out"]
 
   RS -->|validating| TS["Source: tree-sitter<br/>deterministic syntax check"]
-  RS -->|analyzing| AG["6 specialist agents (LangGraph, concurrent)<br/>security · performance · logic · quality · docs · tests<br/>ModelProvider — Ollama · OpenAI · Anthropic · BYO"]
-  RS -.->|"enriching (Inc 5)"| EXT["Sources: SARIF scanners<br/>Semgrep · Bandit · SonarQube · CodeRabbit"]
+  RS -->|analyzing| AG["6 specialist agents (concurrent)<br/>security · performance · logic · quality · docs · tests<br/>ModelProvider — Ollama · OpenAI · Anthropic · BYO"]
+  RS -->|analyzing| EXT["Sources: SARIF scanners (sandboxed Docker)<br/>Semgrep · Bandit<br/>(SonarQube · CodeRabbit pluggable later)"]
 
-  TS --> AGG["Aggregator<br/>dedupe + merge by location + category"]
+  TS --> AGG["Aggregator<br/>dedupe + merge by location + similar title<br/>→ union sources[]"]
   AG --> AGG
-  EXT -.-> AGG
+  EXT --> AGG
 
   AGG --> RESULT["ReviewResult.findings<br/>category · severity · location · recommendation · sources[]"]
-  RESULT --> GET["GET /api/reviews/:id"]
+  RESULT --> GET["GET /api/reviews/:id (Postgres)"]
   GET --> CARDS["Findings UI<br/>category groups · severity badges<br/>source citations · click → jump to line"]
 
-  JM -.->|progress events| SSEUI["SSE stream → progress stepper"]
-
-  classDef future stroke-dasharray: 5 5;
-  class EXT future;
+  Q -.->|progress events (Redis pub/sub)| SSEUI["SSE stream → progress stepper"]
 ```
 
 - **`tree-sitter`** (deterministic): real parse errors → `syntax` findings, no LLM needed.
-- **`core-reviewer`** (the AI agent): one structured LLM call via the pluggable `ModelProvider` →
-  `security / performance / logic / style` findings.
-- **SARIF scanners** (dashed = future Inc 5): Semgrep/Bandit/etc. plug in as additional sources via a
-  single SARIF→Findings mapper; the aggregator attaches them to existing findings as extra citations.
-- **Multi-agent (Inc 2):** a LangGraph graph fans out to 6 concurrent specialist agents (each with its own focused prompt + optional per-agent model); the aggregator dedupes/merges their findings and ranks by severity. Local models serialize on one Ollama instance — use a cloud provider for true parallelism.
+- **Agents (Inc 2):** a LangGraph graph fans out to 6 concurrent specialist agents
+  (`security / performance / logic / quality / docs / tests`), each with its own prompt + optional
+  per-agent model; cloud providers run them truly in parallel (local Ollama serializes).
+- **SARIF scanners (Inc 5):** Semgrep + Bandit run as sandboxed Docker nodes; one SARIF→Findings mapper
+  turns their results into `sources` that the aggregator merges into the matching finding as extra
+  citations (each chip links to the rule). See **Scanners** below.
 
-> The dashed `enriching` stage is reserved in the status contract + UI today; it activates when the
-> scanner fan-out lands in Inc 5. Multi-agent fan-out (parallel specialist agents) arrives in Inc 2.
+## Scanners (Inc 5)
+Semgrep + Bandit run as Docker containers in parallel with the agents; their SARIF findings merge
+into the same cards via the aggregator, so one issue cites the agent **and** the scanners (each chip
+links to the rule). Bandit runs fully offline + sandboxed (`--network=none`, code mounted read-only);
+Semgrep fetches its rule registry (network-enabled; the code is still mounted read-only and never
+executed). Build the images once with `task scanners-build`. Configure via `ADC_SCANNERS` (default
+`semgrep,bandit`; empty disables). Requires Docker; without it (or `ADC_SCANNERS=`) reviews run agent-only.
 
 ## Quick start
 ```bash

@@ -30,3 +30,21 @@ async def test_all_agents_run_and_identical_findings_merge_with_per_agent_progre
     assert "analyzing" in stages and "done" in stages
     final_sub = [sub for s, sub in events if s == "analyzing"][-1]
     assert all(v == "done" for v in final_sub.values())
+
+
+@pytest.mark.asyncio
+async def test_all_agents_failing_surfaces_as_failed_not_clean():
+    # If every agent errors (e.g. bad API key), the review must NOT look like a clean "done".
+    class _Boom(MockProvider):
+        async def complete_structured(self, **kwargs):
+            raise RuntimeError("auth error")
+
+    svc = ReviewService(agents=build_agents(provider=_Boom()), scanners=[])
+    stages: list[str] = []
+    result = await svc.run(
+        review_id="rf", language="python", code="x = 1\n",
+        on_progress=lambda e: stages.append(e.stage),
+    )
+    assert result.status == "failed"
+    assert "agents failed" in (result.error or "")
+    assert stages[-1] == "failed"

@@ -9,7 +9,7 @@ from pydantic.alias_generators import to_camel
 Category = Literal["security", "performance", "logic", "quality", "docs", "tests", "syntax"]
 Severity = Literal["info", "low", "medium", "high", "critical"]
 ReviewStatus = Literal[
-    "queued", "validating", "analyzing", "enriching", "finalizing", "done", "failed"
+    "queued", "validating", "analyzing", "finalizing", "done", "failed"
 ]
 
 class _Camel(BaseModel):
