@@ -52,10 +52,12 @@ async def run_review_core(
 
 # ---- arq task + worker settings (production) ----
 
-async def run_review(ctx: dict, review_id: str, marked: list[str]) -> None:
+async def run_review(
+    ctx: dict, review_id: str, marked: list[str], model: str | None = None
+) -> None:
     await run_review_core(
         review_id, marked, repo=ctx["repo"], bus=ctx["bus"], store=ctx["store"],
-        agents=build_agents(),
+        agents=build_agents(model=model),
     )
 
 

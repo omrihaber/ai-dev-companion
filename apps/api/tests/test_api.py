@@ -20,7 +20,7 @@ def _app():
         "description": "concat", "recommendation": "params", "start_line": 1, "end_line": 1,
     }])
     queue = InlineReviewQueue(
-        repo, bus, store, agents_factory=lambda: build_agents(provider=provider)
+        repo, bus, store, agents_factory=lambda _m: build_agents(provider=provider)
     )
     return create_app(repo=repo, bus=bus, queue=queue, store=store)
 
@@ -112,17 +112,11 @@ async def test_list_includes_file_count():
 
 
 @pytest.mark.asyncio
-async def test_settings_get_and_put_roundtrip(tmp_path, monkeypatch):
-    from adc_api.settings import settings as _s
-    monkeypatch.setattr(_s, "config_file", str(tmp_path / "cfg.json"))
+async def test_models_endpoint_lists_provider_models(monkeypatch):
+    monkeypatch.setenv("ADC_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("ADC_MODEL", "mock")
     async with AsyncClient(transport=ASGITransport(app=_app()), base_url="http://t") as c:
-        put = await c.put("/api/settings", json={
-            "provider": "openai", "model": "gpt-4o-mini", "apiKey": "sk-test-123456",
-        })
-        assert put.status_code == 200
-        body = put.json()
-        assert body["provider"] == "openai" and body["model"] == "gpt-4o-mini"
-        assert body["hasKey"] is True and body["keyHint"] == "…3456"
-        assert "sk-test" not in str(body)  # raw key never echoed
-        got = (await c.get("/api/settings")).json()
-        assert got["provider"] == "openai" and got["hasKey"] is True
+        body = (await c.get("/api/models")).json()
+        assert body["provider"] == "mock"
+        assert body["current"] == "mock"
+        assert "mock" in body["models"]

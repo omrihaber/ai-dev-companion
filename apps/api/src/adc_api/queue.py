@@ -12,7 +12,13 @@ from adc_api.worker import run_review_core
 
 
 class ReviewQueue(Protocol):
-    async def enqueue(self, review_id: str, marked: list[str]) -> None: ...
+    async def enqueue(
+        self, review_id: str, marked: list[str], model: str | None = None
+    ) -> None: ...
+
+
+def _default_agents(model: str | None) -> list[SpecialistAgent]:
+    return build_agents(model=model)
 
 
 class InlineReviewQueue:
@@ -23,7 +29,7 @@ class InlineReviewQueue:
         repo: ReviewRepository,
         bus: EventBus,
         store: CorpusStore,
-        agents_factory: Callable[[], list[SpecialistAgent]] = build_agents,
+        agents_factory: Callable[[str | None], list[SpecialistAgent]] = _default_agents,
     ) -> None:
         self._repo = repo
         self._bus = bus
@@ -31,11 +37,11 @@ class InlineReviewQueue:
         self._agents_factory = agents_factory
         self._tasks: set[asyncio.Task[None]] = set()
 
-    async def enqueue(self, review_id: str, marked: list[str]) -> None:
+    async def enqueue(self, review_id: str, marked: list[str], model: str | None = None) -> None:
         task = asyncio.create_task(
             run_review_core(
                 review_id, marked, repo=self._repo, bus=self._bus, store=self._store,
-                agents=self._agents_factory(),
+                agents=self._agents_factory(model),
             )
         )
         self._tasks.add(task)
@@ -48,12 +54,12 @@ class ArqReviewQueue:
     def __init__(self, redis_url: str) -> None:
         self._redis_url = redis_url
 
-    async def enqueue(self, review_id: str, marked: list[str]) -> None:
+    async def enqueue(self, review_id: str, marked: list[str], model: str | None = None) -> None:
         from arq import create_pool
         from arq.connections import RedisSettings
 
         pool = await create_pool(RedisSettings.from_dsn(self._redis_url))
         try:
-            await pool.enqueue_job("run_review", review_id, marked)
+            await pool.enqueue_job("run_review", review_id, marked, model)
         finally:
             await pool.aclose()

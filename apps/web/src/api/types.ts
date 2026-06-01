@@ -22,4 +22,5 @@ export type CoverageReason = "marked" | "scanner-hit" | "fallback" | "not-flagge
 export interface FileCoverage { path: string; agentReviewed: boolean; reason: CoverageReason; }
 export interface Coverage { filesTotal: number; filesAgentReviewed: number; files: FileCoverage[]; }
 export interface FileInput { path: string; content: string; language?: string; }
-export interface CreateReviewBody { files: FileInput[]; marked: string[]; }
+export interface CreateReviewBody { files: FileInput[]; marked: string[]; model?: string; }
+export interface ModelsResponse { provider: string; current: string; models: string[]; }

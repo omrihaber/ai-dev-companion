@@ -3,6 +3,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { useReviewStream } from "../hooks/useReviewStream";
 import { ProgressStepper } from "./ProgressStepper";
 import { FindingCard } from "./FindingCard";
+import { ModelPicker } from "./ModelPicker";
 
 // The simple single-snippet flow (assignment requirement): pick a language, paste one file, review.
 const LANGUAGES = ["python", "typescript", "javascript", "java", "go", "rust", "bash"];
@@ -17,6 +18,7 @@ const SAMPLE =
 
 export function SnippetReview() {
   const [language, setLanguage] = useState("python");
+  const [model, setModel] = useState("");
   const [code, setCode] = useState(SAMPLE);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const { start, progress, result, running, error } = useReviewStream();
@@ -32,7 +34,7 @@ export function SnippetReview() {
 
   const review = () => {
     const path = `snippet.${EXT[language] ?? "txt"}`;
-    start({ files: [{ path, content: code, language }], marked: [path] });
+    start({ files: [{ path, content: code, language }], marked: [path], model: model || undefined });
   };
 
   return (
@@ -42,6 +44,7 @@ export function SnippetReview() {
           <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="language">
             {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
+          <ModelPicker value={model} onChange={setModel} />
         </div>
         <Editor height="60vh" language={monacoLang(language)} theme="vs-dark" value={code} onMount={onMount}
           onChange={(v) => setCode(v ?? "")}

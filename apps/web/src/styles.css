@@ -305,3 +305,8 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .settings-form .review-btn { align-self: flex-start; }
 .settings-form .muted { color: #6b7280; }
 .settings-status { color: #7ee2a8; font-size: 13px; }
+
+/* Model picker (in-review model dropdown) */
+.model-pick { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0; }
+.model-pick select { background: #161a22; border: 1px solid var(--border, #2a2f3a); color: #cdd3dc;
+  border-radius: 8px; padding: 5px 8px; font-size: 13px; max-width: 220px; }

@@ -46,10 +46,10 @@ export function useReviewStream() {
     }
   }, [stream]);
 
-  const rerun = useCallback(async (id: string, marked: string[]) => {
+  const rerun = useCallback(async (id: string, marked: string[], model?: string) => {
     setProgress(null); setResult(null); setError(null); setRunning(true);
     try {
-      stream(await rerunReview(id, marked));
+      stream(await rerunReview(id, marked, model));
     } catch (err) {
       setRunning(false); setError(err instanceof Error ? err.message : "unknown error");
     }

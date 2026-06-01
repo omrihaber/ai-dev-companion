@@ -29,7 +29,6 @@ class Settings(BaseSettings):
         "*.lock,*.min.js,*.map,*.png,*.jpg,*.jpeg,*.gif,*.pdf,*.zip,*.so,*.dll,*.exe,*.bin"
     )
     work_root: str = ".adc_work"      # base dir for per-review corpus work dirs
-    config_file: str = ".adc_config.json"  # runtime, UI-editable provider overrides (over env)
 
 
 settings = Settings()

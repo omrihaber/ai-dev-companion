@@ -21,27 +21,7 @@ _TERMINAL = {"done", "failed"}
 
 class RerunRequest(BaseModel):
     marked: list[str] = []
-
-
-class SettingsBody(BaseModel):
-    provider: str | None = None
     model: str | None = None
-    apiKey: str | None = None
-    baseUrl: str | None = None
-
-
-def _settings_view() -> dict:
-    from adc_api.runtime_config import effective
-
-    eff = effective()
-    key = eff.get("apiKey") or ""
-    return {
-        "provider": eff["provider"],
-        "model": eff["model"],
-        "baseUrl": eff["baseUrl"] or "",
-        "hasKey": bool(key),
-        "keyHint": f"…{key[-4:]}" if len(key) >= 4 else "",
-    }
 
 
 def _default_deps() -> tuple[ReviewRepository, EventBus, ReviewQueue, CorpusStore]:
@@ -86,7 +66,7 @@ def create_app(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
 
-    async def _start(files: list[CorpusFile], marked: list[str]) -> str:
+    async def _start(files: list[CorpusFile], marked: list[str], model: str | None = None) -> str:
         valid = {f.path for f in files}
         marked_valid = [m for m in marked if m in valid]
         if len(marked_valid) > settings.agent_file_ceiling:
@@ -98,7 +78,7 @@ def create_app(
         review_id = str(uuid.uuid4())
         store.write(review_id, files)
         await repo.create(review_id, (files[0].language or "text"))
-        await queue.enqueue(review_id, marked_valid)
+        await queue.enqueue(review_id, marked_valid, model)
         return review_id
 
     @app.post("/api/reviews", status_code=202)
@@ -108,15 +88,15 @@ def create_app(
         except (IngestError, SubmissionError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         marked = req.marked or [f.path for f in files]
-        return {"reviewId": await _start(files, marked), "status": "queued"}
+        return {"reviewId": await _start(files, marked, req.model), "status": "queued"}
 
     @app.post("/api/reviews/zip", status_code=202)
-    async def create_review_zip(file: UploadFile) -> dict:
+    async def create_review_zip(file: UploadFile, model: str | None = None) -> dict:
         try:
             files = ingest_zip(await file.read())
         except IngestError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return {"reviewId": await _start(files, [f.path for f in files]), "status": "queued"}
+        return {"reviewId": await _start(files, [f.path for f in files], model), "status": "queued"}
 
     @app.post("/api/reviews/{review_id}/rerun", status_code=202)
     async def rerun_review(review_id: str, req: RerunRequest) -> dict:
@@ -128,7 +108,7 @@ def create_app(
         await repo.create(new_id, (files[0].language or "text") if files else "text")
         await repo.set_parent(new_id, review_id)
         valid = {f.path for f in files}
-        await queue.enqueue(new_id, [m for m in req.marked if m in valid])
+        await queue.enqueue(new_id, [m for m in req.marked if m in valid], req.model)
         return {"reviewId": new_id, "status": "queued", "parentReviewId": review_id}
 
     @app.get("/api/reviews/{review_id}/file")
@@ -176,16 +156,11 @@ def create_app(
             raise HTTPException(status_code=404, detail="review not found")
         return result.model_dump(by_alias=True, mode="json")
 
-    @app.get("/api/settings")
-    async def get_settings() -> dict:
-        return _settings_view()
+    @app.get("/api/models")
+    async def list_models() -> dict:
+        from adc_api import models as _models
 
-    @app.put("/api/settings")
-    async def put_settings(body: SettingsBody) -> dict:
-        from adc_api.runtime_config import save
-
-        save({k: v for k, v in body.model_dump().items() if v})
-        return _settings_view()
+        return await _models.available()
 
     @app.get("/api/health")
     async def health() -> dict:
