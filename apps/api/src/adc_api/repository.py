@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from adc_core.models import Finding, ReviewResult, ReviewStatus
+from adc_core.models import Coverage, Finding, ReviewResult, ReviewStatus
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -20,12 +20,15 @@ def _row_to_result(row: ReviewRow) -> ReviewResult:
         created_at=row.created_at,
         duration_ms=row.duration_ms,
         error=row.error,
+        coverage=Coverage.model_validate(row.coverage) if row.coverage else None,
+        parent_review_id=row.parent_review_id,
     )
 
 
 class ReviewRepository(Protocol):
     async def create(self, review_id: str, language: str) -> None: ...
     async def set_status(self, review_id: str, status: ReviewStatus) -> None: ...
+    async def set_parent(self, review_id: str, parent_review_id: str) -> None: ...
     async def save_result(self, result: ReviewResult) -> None: ...
     async def get(self, review_id: str) -> ReviewResult | None: ...
     async def list_all(self) -> list[ReviewResult]: ...
@@ -42,10 +45,15 @@ class InMemoryReviewRepository:
         if review_id in self._d:
             self._d[review_id].status = status
 
+    async def set_parent(self, review_id: str, parent_review_id: str) -> None:
+        if review_id in self._d:
+            self._d[review_id].parent_review_id = parent_review_id
+
     async def save_result(self, result: ReviewResult) -> None:
         existing = self._d.get(result.id)
         if existing is not None:
             result.created_at = existing.created_at
+            result.parent_review_id = result.parent_review_id or existing.parent_review_id
         self._d[result.id] = result
 
     async def get(self, review_id: str) -> ReviewResult | None:
@@ -69,6 +77,12 @@ class SqlReviewRepository:
             if row is not None:
                 row.status = status
 
+    async def set_parent(self, review_id: str, parent_review_id: str) -> None:
+        async with self._sf() as s, s.begin():
+            row = await s.get(ReviewRow, review_id)
+            if row is not None:
+                row.parent_review_id = parent_review_id
+
     async def save_result(self, result: ReviewResult) -> None:
         async with self._sf() as s, s.begin():
             row = await s.get(ReviewRow, result.id)
@@ -82,6 +96,11 @@ class SqlReviewRepository:
             row.error = result.error
             row.duration_ms = result.duration_ms
             row.findings = [f.model_dump(by_alias=True, mode="json") for f in result.findings]
+            row.coverage = (
+                result.coverage.model_dump(by_alias=True, mode="json")
+                if result.coverage else None
+            )
+            row.parent_review_id = result.parent_review_id or row.parent_review_id
 
     async def get(self, review_id: str) -> ReviewResult | None:
         async with self._sf() as s:
