@@ -329,3 +329,9 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-
 .lang-menu li:hover, .lang-menu li.active { background: #243044; }
 /* devicon glyphs: size + a light fallback color for monochrome logos (rust/bash) on the dark theme */
 .lang-trigger i, .lang-menu i { font-size: 18px; color: #cdd3dc; }
+
+/* Snippet view (.workspace): same independent findings scroll as the Project view */
+.workspace { height: calc(100vh - 56px); }
+.workspace .pane { min-height: 0; }
+.workspace .editor-pane { display: flex; flex-direction: column; overflow: auto; }
+.workspace .findings-pane { overflow-y: auto; }
