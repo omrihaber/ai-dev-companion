@@ -11,6 +11,8 @@ dev = ["ruff>=0.6"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Runtime corpus work dirs (uploaded code under review) — never lint user submissions.
+extend-exclude = [".adc_work"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
