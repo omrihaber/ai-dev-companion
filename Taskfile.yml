@@ -1,12 +1,12 @@
 version: "3"
 tasks:
-  up: { desc: "Start local infra", cmds: ["docker compose -f infra/compose/docker-compose.yml up -d"] }
-  down: { cmds: ["docker compose -f infra/compose/docker-compose.yml down"] }
-  api: { dir: apps/api, cmds: ["uv run uvicorn adc_api.main:app --reload --port 8000"] }
-  web: { dir: apps/web, cmds: ["pnpm dev"] }
+  up: { desc: "Start local infra (postgres + redis + ollama)", cmds: ["docker compose -f infra/compose/docker-compose.yml up -d"] }
+  down: { desc: "Stop local infra", cmds: ["docker compose -f infra/compose/docker-compose.yml down"] }
+  api: { desc: "Run the API (loads .env)", dir: apps/api, dotenv: ['../../.env'], cmds: ["uv run uvicorn adc_api.main:app --reload --port 8000"] }
+  web: { desc: "Run the web dev server", dir: apps/web, dotenv: ['../../.env'], cmds: ["pnpm dev"] }
+  worker: { desc: "Run the arq review worker (loads .env)", dir: apps/api, dotenv: ['../../.env'], cmds: ["uv run arq adc_api.worker.WorkerSettings"] }
+  migrate: { desc: "Apply DB migrations (loads .env)", dir: apps/api, dotenv: ['../../.env'], cmds: ["uv run alembic upgrade head"] }
+  pull-model: { desc: "Pull the default local model into Ollama", cmds: ["docker compose -f infra/compose/docker-compose.yml exec ollama ollama pull qwen2.5-coder:7b"] }
   install: { desc: "Install all Python workspace members (editable)", cmds: ["uv sync --all-packages"] }
-  test:py: { cmds: ["uv sync --all-packages", "uv run pytest packages/core apps/api"] }
-  test:web: { dir: apps/web, cmds: ["pnpm test"] }
-  pull-model: { cmds: ["docker compose -f infra/compose/docker-compose.yml exec ollama ollama pull qwen2.5-coder:7b"] }
-  migrate: { dir: apps/api, cmds: ["uv run alembic upgrade head"] }
-  worker: { dir: apps/api, cmds: ["uv run arq adc_api.worker.WorkerSettings"] }
+  test:py: { desc: "Run backend tests", cmds: ["uv sync --all-packages", "uv run pytest packages/core apps/api"] }
+  test:web: { desc: "Run frontend unit tests", dir: apps/web, cmds: ["pnpm test"] }
