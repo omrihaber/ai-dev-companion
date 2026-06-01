@@ -64,3 +64,24 @@ def test_review_status_no_longer_allows_enriching():
     from pydantic import ValidationError
     with pytest.raises(ValidationError):
         ReviewResult(id="r1", language="python", model="m", status="enriching")
+
+
+def test_review_result_carries_coverage_and_parent_camelcase():
+    from adc_core.models import Coverage, FileCoverage, ReviewResult
+
+    cov = Coverage(
+        files_total=3,
+        files_agent_reviewed=1,
+        files=[
+            FileCoverage(path="a.py", agent_reviewed=True, reason="marked"),
+            FileCoverage(path="b.py", agent_reviewed=False, reason="not-flagged"),
+        ],
+    )
+    r = ReviewResult(id="x", language="python", model="m", coverage=cov, parent_review_id="p")
+    dumped = r.model_dump(by_alias=True)
+    assert dumped["coverage"]["filesTotal"] == 3
+    assert dumped["coverage"]["files"][0]["agentReviewed"] is True
+    assert dumped["coverage"]["files"][0]["reason"] == "marked"
+    assert dumped["parentReviewId"] == "p"
+    # default: no coverage / parent
+    assert ReviewResult(id="y", language="python", model="m").coverage is None
